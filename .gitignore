@@ -1,0 +1,14 @@
+__pycache__/
+.env
+data/raw/
+data/processed/
+data/synthetic/
+*.pyc
+.venv/
+env/
+*.egg-info/
+wandb/
+checkpoints/
+*.pkl
+*.pt
+.ipynb_checkpoints/

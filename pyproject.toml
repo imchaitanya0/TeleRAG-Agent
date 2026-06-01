@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "telerag-agent"
+version = "0.1.0"
+description = "RAG based Future-Ready Telecom RAN Assistant"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    # Dependencies are managed in requirements.txt
+]
+
+[tool.black]
+line-length = 88
+
+[tool.ruff]
+line-length = 88
