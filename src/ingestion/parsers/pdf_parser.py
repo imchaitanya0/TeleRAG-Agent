@@ -88,9 +88,29 @@ class TelecomPDFParser:
             
         doc.close()
         
-        # In a full implementation, we'd use pdfplumber here to extract tables
-        # and attach them to the relevant current_section based on page/bbox.
-        # For performance, PyMuPDF is primary for text.
+        # Extract tables using pdfplumber and attach to nearest section
+        try:
+            with pdfplumber.open(pdf_path) as pdf_pl:
+                for page in pdf_pl.pages:
+                    tables = page.extract_tables()
+                    for table in tables:
+                        if not table:
+                            continue
+                        # Convert table to markdown
+                        md_rows = []
+                        for row_idx, row in enumerate(table):
+                            cleaned = [str(cell).strip() if cell else "" for cell in row]
+                            md_rows.append("| " + " | ".join(cleaned) + " |")
+                            if row_idx == 0:
+                                md_rows.append("| " + " | ".join(["---"] * len(cleaned)) + " |")
+                        md_table = "\n".join(md_rows)
+                        
+                        # Attach to the last section (best approximation)
+                        if sections:
+                            sections[-1]["tables"].append(md_table)
+        except Exception as e:
+            # pdfplumber may fail on some PDFs — not critical
+            print(f"Table extraction warning for {pdf_path.name}: {e}")
         
         return sections
 

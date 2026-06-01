@@ -4,6 +4,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 from src.ingestion.parsers import parse_document
+from src.ingestion.parsers.pdf_parser import parse_multiple_pdfs
 from src.ingestion.metadata_enricher import enrich_section
 from src.ingestion.chunker import HierarchicalChunker
 from src.ingestion.kg_builder import SectionKnowledgeGraph
@@ -29,13 +30,20 @@ def run_ingestion(raw_data_dir: Path, output_dir: Path):
     
     all_sections = []
     
-    # Step 2: Parse each file
-    print("Parsing documents...")
-    for file_path in tqdm(files):
-        # We process sequentially here for the stub. 
-        # In a real run, `parse_multiple_pdfs` from pdf_parser could be invoked instead.
-        sections = parse_document(file_path)
-        all_sections.extend(sections)
+    # Step 2: Parse documents (parallel for PDFs, sequential for HTML)
+    pdf_files = [f for f in files if f.suffix.lower() == '.pdf']
+    html_files = [f for f in files if f.suffix.lower() in ['.html', '.htm']]
+    
+    if pdf_files:
+        print(f"Parsing {len(pdf_files)} PDFs in parallel (ThreadPoolExecutor)...")
+        pdf_sections = parse_multiple_pdfs(pdf_files, max_workers=4)
+        all_sections.extend(pdf_sections)
+    
+    if html_files:
+        print(f"Parsing {len(html_files)} HTML files...")
+        for file_path in tqdm(html_files):
+            sections = parse_document(file_path)
+            all_sections.extend(sections)
 
     # Step 3: Enrich metadata
     print("Enriching metadata...")
@@ -59,7 +67,9 @@ def run_ingestion(raw_data_dir: Path, output_dir: Path):
     chunks_file = output_dir / "chunks.jsonl"
     with open(chunks_file, "w") as f:
         for chunk in chunks:
-            f.write(json.dumps(chunk) + "\n")
+            # Ensure JSON serialization works by converting metadata
+            safe_chunk = {k: v for k, v in chunk.items() if k != "metadata"}
+            f.write(json.dumps(safe_chunk, default=str) + "\n")
             
     kg_file = output_dir / "section_graph.pkl"
     kg.save(kg_file)

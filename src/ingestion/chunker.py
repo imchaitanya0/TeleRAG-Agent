@@ -99,10 +99,44 @@ class HierarchicalChunker:
                 all_chunks.append(leaf_chunk)
                 sec_chunk["child_ids"].append(leaf_id)
 
-        # Append all section chunks that have children (meaning they are parent clauses)
+        # Enforce leaf_min: merge short trailing leaves with previous leaf
+        merged_chunks = []
+        for chunk in all_chunks:
+            if chunk["chunk_tier"] == "leaf" and chunk["token_count"] < self.leaf_min and merged_chunks:
+                # Find the previous leaf under the same parent
+                prev = None
+                for c in reversed(merged_chunks):
+                    if c["chunk_tier"] == "leaf" and c.get("parent_id") == chunk.get("parent_id"):
+                        prev = c
+                        break
+                if prev:
+                    prev["content"] += " " + chunk["content"]
+                    prev["token_count"] = self._approx_tokens(prev["content"])
+                    # Remove this chunk's id from parent's child_ids
+                    parent_path = tuple(chunk["metadata"].get("clause_path", []))
+                    if parent_path in section_chunks_map:
+                        cids = section_chunks_map[parent_path]["child_ids"]
+                        if chunk["chunk_id"] in cids:
+                            cids.remove(chunk["chunk_id"])
+                    continue
+            merged_chunks.append(chunk)
+        all_chunks = merged_chunks
+
+        # Add sibling_ids: leaves sharing the same parent are siblings
+        parent_to_leaves: dict[str, list[str]] = {}
+        for chunk in all_chunks:
+            if chunk["chunk_tier"] == "leaf":
+                pid = chunk.get("parent_id", "")
+                parent_to_leaves.setdefault(pid, []).append(chunk["chunk_id"])
+
+        for chunk in all_chunks:
+            if chunk["chunk_tier"] == "leaf":
+                pid = chunk.get("parent_id", "")
+                siblings = [cid for cid in parent_to_leaves.get(pid, []) if cid != chunk["chunk_id"]]
+                chunk["sibling_ids"] = siblings
+
+        # Append all section chunks
         for clause_path, sec_chunk in section_chunks_map.items():
-            # If the section has children (either sub-clauses or leaf chunks), include it
-            # We enforce section size bounds later during retrieval
             all_chunks.append(sec_chunk)
             
         return all_chunks
