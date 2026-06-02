@@ -21,7 +21,7 @@ def run_ingestion(raw_data_dir: Path, output_dir: Path):
         return
 
     # Find all PDFs and HTMLs
-    files = list(raw_3gpp_dir.glob("*.pdf")) + list(raw_3gpp_dir.glob("*.html"))
+    files = list(raw_3gpp_dir.glob("*.pdf")) + list(raw_3gpp_dir.glob("*.html")) + list(raw_3gpp_dir.glob("*.txt"))
     if not files:
         print("No documents found to parse.")
         return
@@ -30,9 +30,10 @@ def run_ingestion(raw_data_dir: Path, output_dir: Path):
     
     all_sections = []
     
-    # Step 2: Parse documents (parallel for PDFs, sequential for HTML)
+    # Step 2: Parse documents (parallel for PDFs, sequential for HTML/TXT)
     pdf_files = [f for f in files if f.suffix.lower() == '.pdf']
     html_files = [f for f in files if f.suffix.lower() in ['.html', '.htm']]
+    txt_files = [f for f in files if f.suffix.lower() == '.txt']
     
     if pdf_files:
         print(f"Parsing {len(pdf_files)} PDFs in parallel (ThreadPoolExecutor)...")
@@ -42,6 +43,12 @@ def run_ingestion(raw_data_dir: Path, output_dir: Path):
     if html_files:
         print(f"Parsing {len(html_files)} HTML files...")
         for file_path in tqdm(html_files):
+            sections = parse_document(file_path)
+            all_sections.extend(sections)
+
+    if txt_files:
+        print(f"Parsing {len(txt_files)} text files...")
+        for file_path in tqdm(txt_files):
             sections = parse_document(file_path)
             all_sections.extend(sections)
 
