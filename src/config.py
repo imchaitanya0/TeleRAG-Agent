@@ -23,8 +23,7 @@ EMBED_MODEL_ID = "BAAI/bge-large-en-v1.5"
 RERANKER_MODEL_ID = "BAAI/bge-reranker-v2-m3"
 
 # Qdrant configuration
-QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
-QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
+QDRANT_PATH = str(DATA_DIR / "qdrant_storage")
 COLLECTION_NAME = "telecom_specs"
 
 # Chunking configuration

@@ -8,6 +8,8 @@ from src.ingestion.parsers.pdf_parser import parse_multiple_pdfs
 from src.ingestion.metadata_enricher import enrich_section
 from src.ingestion.chunker import HierarchicalChunker
 from src.ingestion.kg_builder import SectionKnowledgeGraph
+from src.ingestion.embedder import TelecomEmbedder
+from src.ingestion.indexer import QdrantIndexer
 
 def run_ingestion(raw_data_dir: Path, output_dir: Path):
     print("=== Starting End-to-End Ingestion ===")
@@ -69,7 +71,16 @@ def run_ingestion(raw_data_dir: Path, output_dir: Path):
     kg = SectionKnowledgeGraph()
     kg.build_from_sections(enriched_sections)
 
-    # Step 6: Save outputs
+    # Step 6: Embed and Index
+    print("Embedding chunks...")
+    embedder = TelecomEmbedder(batch_size=32)
+    embedded_chunks = embedder.embed_documents(chunks)
+
+    print("Indexing to Qdrant...")
+    indexer = QdrantIndexer()
+    indexer.index_chunks(embedded_chunks)
+
+    # Step 7: Save outputs
     print("Saving outputs...")
     chunks_file = output_dir / "chunks.jsonl"
     with open(chunks_file, "w") as f:
@@ -87,6 +98,7 @@ def run_ingestion(raw_data_dir: Path, output_dir: Path):
     print(f"Total Sections Extracted: {len(enriched_sections)}")
     print(f"Total Chunks Generated: {len(chunks)}")
     print(f"Knowledge Graph Stats: {kg.get_stats()}")
+    print(f"Total Chunks Indexed: {len(embedded_chunks)}")
     print(f"Chunks saved to: {chunks_file}")
     print(f"Graph saved to: {kg_file}")
 
