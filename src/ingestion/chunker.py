@@ -22,18 +22,20 @@ class HierarchicalChunker:
 
     def chunk_document(self, sections: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         all_chunks = []
-        section_chunks_map = {} # Maps clause_path_tuple to section chunk
+        section_chunks_map = {} # Maps (spec_number, clause_path_tuple) to section chunk
         
         # Identify parent-child relationships first
         for i, section in enumerate(sections):
             content = section.get("content", "")
             tokens = self._approx_tokens(content)
             
+            spec_number = section['spec_number']
             clause_path = tuple(section.get("clause_path", []))
-            chunk_id = f"{section['spec_number']}_{section['clause_string']}"
+            map_key = (spec_number, clause_path)
+            chunk_id = f"{spec_number}_{section['clause_string']}"
             
             # Create a section chunk mapping
-            section_chunks_map[clause_path] = {
+            section_chunks_map[map_key] = {
                 "chunk_id": f"SEC_{chunk_id}",
                 "chunk_tier": "section",
                 "spec_number": section["spec_number"],
@@ -48,8 +50,10 @@ class HierarchicalChunker:
         # Process leaves and link to sections
         for section in sections:
             content = section.get("content", "")
+            spec_number = section['spec_number']
             clause_path = tuple(section.get("clause_path", []))
-            sec_chunk = section_chunks_map.get(clause_path)
+            map_key = (spec_number, clause_path)
+            sec_chunk = section_chunks_map.get(map_key)
             
             # Simple leaf chunking: if content is large, split it
             sentences = self._split_into_sentences(content)
@@ -113,9 +117,11 @@ class HierarchicalChunker:
                     prev["content"] += " " + chunk["content"]
                     prev["token_count"] = self._approx_tokens(prev["content"])
                     # Remove this chunk's id from parent's child_ids
+                    spec = chunk["metadata"].get("spec_number", "")
                     parent_path = tuple(chunk["metadata"].get("clause_path", []))
-                    if parent_path in section_chunks_map:
-                        cids = section_chunks_map[parent_path]["child_ids"]
+                    map_key = (spec, parent_path)
+                    if map_key in section_chunks_map:
+                        cids = section_chunks_map[map_key]["child_ids"]
                         if chunk["chunk_id"] in cids:
                             cids.remove(chunk["chunk_id"])
                     continue

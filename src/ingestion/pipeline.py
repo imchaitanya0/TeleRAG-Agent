@@ -85,8 +85,14 @@ def run_ingestion(raw_data_dir: Path, output_dir: Path):
     chunks_file = output_dir / "chunks.jsonl"
     with open(chunks_file, "w") as f:
         for chunk in chunks:
-            # Ensure JSON serialization works by converting metadata
+            # Flatten metadata into the chunk for saving
             safe_chunk = {k: v for k, v in chunk.items() if k != "metadata"}
+            metadata = chunk.get("metadata", {})
+            safe_chunk["spec_number"] = metadata.get("spec_number")
+            safe_chunk["clause_string"] = metadata.get("clause_string")
+            safe_chunk["clause_title"] = metadata.get("clause_title")
+            safe_chunk["clause_path"] = metadata.get("clause_path", [])
+            safe_chunk["cross_references"] = metadata.get("cross_references", [])
             f.write(json.dumps(safe_chunk, default=str) + "\n")
             
     kg_file = output_dir / "section_graph.pkl"

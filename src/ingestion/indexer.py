@@ -50,16 +50,34 @@ class QdrantIndexer:
 
         print(f"Indexing {len(embedded_chunks)} chunks to Qdrant...")
         
+        import uuid
         points = []
         for i, chunk in enumerate(embedded_chunks):
-            # Qdrant requires UUIDs or integers for point IDs
-            # We'll hash the chunk_id to create a deterministic integer ID
-            point_id = hash(chunk["chunk_id"]) % ((1 << 63) - 1)
+            # Use uuid5 for deterministic, collision-free point IDs
+            point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, chunk["chunk_id"]))
             
-            payload = chunk.copy()
-            # Remove vectors from payload
-            dense_vec = payload.pop("dense_vector")
-            sparse_vec = payload.pop("sparse_vector")
+            # Build a flat payload with all metadata at the top level
+            dense_vec = chunk["dense_vector"]
+            sparse_vec = chunk["sparse_vector"]
+            
+            # Flatten nested 'metadata' dict (from chunker) into top-level payload
+            metadata = chunk.get("metadata", {})
+            payload = {
+                "chunk_id": chunk.get("chunk_id"),
+                "chunk_tier": chunk.get("chunk_tier"),
+                "parent_id": chunk.get("parent_id"),
+                "content": chunk.get("content"),
+                "token_count": chunk.get("token_count"),
+                "sibling_ids": chunk.get("sibling_ids", []),
+                # Flattened from metadata
+                "spec_number": metadata.get("spec_number"),
+                "clause_string": metadata.get("clause_string"),
+                "clause_title": metadata.get("clause_title"),
+                "clause_path": metadata.get("clause_path", []),
+                "level": metadata.get("level"),
+                "content_type": metadata.get("content_type"),
+                "cross_references": metadata.get("cross_references", []),
+            }
             
             points.append(
                 rest.PointStruct(
