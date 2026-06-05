@@ -1,13 +1,14 @@
 from typing import List, Dict, Any
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as rest
-from src.config import QDRANT_PATH, COLLECTION_NAME
+from src.config import COLLECTION_NAME, QDRANT_URL
+from src.qdrant_utils import get_qdrant_client
 
 class QdrantIndexer:
     def __init__(self):
-        # Using local persistent storage instead of Docker
-        print(f"Connecting to local Qdrant at: {QDRANT_PATH}")
-        self.client = QdrantClient(path=QDRANT_PATH)
+        target = QDRANT_URL or "local embedded Qdrant"
+        print(f"Connecting to Qdrant at: {target}")
+        self.client = get_qdrant_client()
         self.collection_name = COLLECTION_NAME
         self.setup_collection()
 

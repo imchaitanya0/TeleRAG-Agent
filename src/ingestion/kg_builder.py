@@ -6,6 +6,7 @@ from pathlib import Path
 class SectionKnowledgeGraph:
     def __init__(self):
         self.graph = nx.DiGraph()
+        self._undirected = None  # cached undirected version
 
     def build_from_sections(self, all_sections: List[Dict[str, Any]]):
         """Builds a heading-based NetworkX graph from sections."""
@@ -54,21 +55,31 @@ class SectionKnowledgeGraph:
         for node, data in self.graph.nodes(data=True):
             if query_heading in data.get("clause_title", "").lower():
                 matched_nodes.append(node)
+        
+        # Limit to prevent explosion on broad keywords
+        matched_nodes = matched_nodes[:10]
                 
         related = set(matched_nodes)
         
-        # Traverse neighbors
+        # Cache undirected graph (built once, reused for all queries)
+        if self._undirected is None:
+            self._undirected = self.graph.to_undirected()
+        
+        # Traverse neighbors using cached undirected graph
         for node in matched_nodes:
-            # Undirected neighborhood for hops
-            subgraph = nx.ego_graph(nx.Graph(self.graph), node, radius=max_hops)
-            related.update(subgraph.nodes())
+            try:
+                subgraph = nx.ego_graph(self._undirected, node, radius=max_hops)
+                related.update(subgraph.nodes())
+            except nx.NetworkXError:
+                continue
             
         results = []
         for n in related:
-            results.append({
-                "node_id": n,
-                "data": self.graph.nodes[n]
-            })
+            if n in self.graph.nodes:
+                results.append({
+                    "node_id": n,
+                    "data": self.graph.nodes[n]
+                })
             
         return results
 
@@ -94,6 +105,7 @@ class SectionKnowledgeGraph:
     def load(self, path: str | Path):
         with open(path, 'rb') as f:
             self.graph = pickle.load(f)
+        self._undirected = None  # invalidate cache
 
     def get_stats(self) -> Dict[str, int]:
         return {
