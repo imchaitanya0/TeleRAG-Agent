@@ -6,14 +6,15 @@ from qdrant_client.models import Filter, FieldCondition, MatchValue
 # Add root to python path if run directly
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 
-from src.config import QDRANT_PATH, COLLECTION_NAME
+from src.config import COLLECTION_NAME
+from src.qdrant_utils import get_qdrant_client
 
 class SparseSearcher:
     def __init__(self, client: QdrantClient = None):
         if client:
             self.client = client
         else:
-            self.client = QdrantClient(path=str(QDRANT_PATH))
+            self.client = get_qdrant_client()
         
     def search(self, sparse_vector: dict, limit: int = 20, spec_filter: str = None) -> list:
         """Searches Qdrant using the sparse BM25 vector."""

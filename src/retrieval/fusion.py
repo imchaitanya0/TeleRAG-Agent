@@ -10,12 +10,11 @@ from src.retrieval.sparse_search import SparseSearcher
 from src.retrieval.kg_search import KGSearcher
 from src.ingestion.embedder import TelecomEmbedder
 
-from qdrant_client import QdrantClient
-from src.config import QDRANT_PATH
+from src.qdrant_utils import get_qdrant_client
 
 class HybridRetriever:
     def __init__(self):
-        self.qdrant_client = QdrantClient(path=str(QDRANT_PATH))
+        self.qdrant_client = get_qdrant_client()
         self.dense_searcher = DenseSearcher(client=self.qdrant_client)
         self.sparse_searcher = SparseSearcher(client=self.qdrant_client)
         self.kg_searcher = KGSearcher()
