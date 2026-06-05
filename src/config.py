@@ -24,6 +24,7 @@ RERANKER_MODEL_ID = "BAAI/bge-reranker-v2-m3"
 
 # Qdrant configuration
 QDRANT_PATH = str(DATA_DIR / "qdrant_storage")
+QDRANT_URL = os.getenv("QDRANT_URL")
 COLLECTION_NAME = "telecom_specs"
 
 # Chunking configuration
