@@ -5,15 +5,16 @@ data/processed/
 data/synthetic/
 data/qdrant_server_storage/
 data/qdrant_storage/
-data/
 *.pyc
 .venv/
 env/
 *.egg-info/
 wandb/
 checkpoints/
-models/
-docs/
+# Ignore top-level models/ (binary weights, large files) but NOT src/models/
+/models/lora_adapter/*.bin
+/models/lora_adapter/*.safetensors
+docs/screenshots/
 *.pkl
 *.pt
 .ipynb_checkpoints/
