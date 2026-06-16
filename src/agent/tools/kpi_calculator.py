@@ -47,7 +47,7 @@ KPI_THRESHOLDS = {
         "good": (98.0, 100.0),   # %, good if > 98
         "degraded": (0, 90),
         "unit": "%",
-            "description": "RRC Connection Setup Success Rate",
+        "description": "RRC Connection Setup Success Rate",
         "spec": "TS 28.552 §5.1.1.1",
     },
 }
