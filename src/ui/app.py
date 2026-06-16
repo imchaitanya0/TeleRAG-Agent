@@ -126,7 +126,10 @@ def chat(user_message: str, history: list):
         _audit.log_completion(session_id, confidence=0.0, iterations=0)
         err = f"⚠️ **Security check failed:** {exc}"
         yield (
-            history + [[user_message, err]],
+            history + [
+                {"role": "user", "content": user_message},
+                {"role": "assistant", "content": err},
+            ],
             "_Query blocked by security filter._",
             [], "0%", "🔒 Blocked",
         )
@@ -138,7 +141,10 @@ def chat(user_message: str, history: list):
         "**PLAN** → **RETRIEVE** → **GENERATE** → **REFLECT**"
     )
     yield (
-        history + [[user_message, "⏳ _Thinking…_"]],
+        history + [
+            {"role": "user", "content": user_message},
+            {"role": "assistant", "content": "⏳ _Thinking…_"},
+        ],
         thinking_placeholder,
         [],
         "—",
@@ -154,7 +160,10 @@ def chat(user_message: str, history: list):
         _audit.log_completion(session_id, confidence=0.0, iterations=0)
         err = f"❌ **Agent error:** {str(exc)[:300]}"
         yield (
-            history + [[user_message, err]],
+            history + [
+                {"role": "user", "content": user_message},
+                {"role": "assistant", "content": err},
+            ],
             f"_Error: {exc}_",
             [], "0%", "❌",
         )
@@ -203,7 +212,10 @@ def chat(user_message: str, history: list):
     )
 
     yield (
-        history + [[user_message, full_answer]],
+        history + [
+            {"role": "user", "content": user_message},
+            {"role": "assistant", "content": full_answer},
+        ],
         thinking_md,
         sources_rows,
         conf_text,
@@ -313,7 +325,7 @@ def build_ui() -> gr.Blocks:
                     fn=lambda: "", inputs=None, outputs=msg_box
                 )
                 clear_btn.click(
-                    fn=lambda: ([], "_Cleared._", [], "—", "—"),
+                    fn=lambda: ([], "_Chat cleared._", [], "**Confidence:** —", "**Query type:** —"),
                     inputs=None,
                     outputs=_outs,
                 )
