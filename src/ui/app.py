@@ -452,7 +452,6 @@ def main():
         server_port=args.server_port,
         share=args.share,
         debug=args.debug,
-        show_api=False,
     )
 
 
