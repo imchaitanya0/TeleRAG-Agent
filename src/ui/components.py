@@ -38,27 +38,29 @@ def query_type_badge(query_type: str) -> str:
     return badges.get(query_type, f"❓ {query_type}")
 
 
-# ── Source table ───────────────────────────────────────────────
+# ── Source table (rendered as Markdown — avoids Gradio Dataframe schema bugs) ──
 
-def format_sources_table(sources: list[dict]) -> list[list]:
+def format_sources_table(sources: list[dict]) -> str:
     """
-    Format sources list into a 2D list for a Gradio Dataframe.
+    Format sources list into a Markdown table string.
 
     Input:  [{spec, clause, title, score}, ...]
-    Output: [[#, Specification, Clause, Title, Relevance], ...]
+    Output: Markdown table string
     """
-    rows = []
+    if not sources:
+        return "_No sources retrieved._"
+
+    lines = ["| # | Specification | Clause | Title | Relevance |"]
+    lines.append("|---|---|---|---|---|")
     for i, s in enumerate(sources, 1):
         spec = s.get("spec", "")
         clause = s.get("clause", "")
-        title = s.get("title", "")[:60] + ("..." if len(s.get("title", "")) > 60 else "")
+        title = s.get("title", "")[:50] + ("…" if len(s.get("title", "")) > 50 else "")
         score = s.get("score", 0.0)
         bar = "█" * int(score * 10) + "░" * (10 - int(score * 10))
-        rows.append([i, spec, f"§{clause}" if clause else "—", title, f"{bar} {score:.3f}"])
-    return rows
-
-
-SOURCES_HEADERS = ["#", "Specification", "Clause", "Title", "Relevance"]
+        clause_str = f"§{clause}" if clause else "—"
+        lines.append(f"| {i} | {spec} | {clause_str} | {title} | {bar} {score:.3f} |")
+    return "\n".join(lines)
 
 
 # ── Thinking trace ─────────────────────────────────────────────

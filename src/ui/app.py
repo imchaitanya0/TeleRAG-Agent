@@ -42,7 +42,6 @@ from src.ui.components import (
     query_type_badge,
     format_alarm_result,
     format_kpi_result,
-    SOURCES_HEADERS,
 )
 
 # ── module-level audit logger ──────────────────────────────────
@@ -297,14 +296,9 @@ def build_ui() -> gr.Blocks:
                         type_out = gr.Markdown("**Query type:** —")
 
                         gr.Markdown("---\n### 📚 Sources")
-                        sources_out = gr.Dataframe(
-                            headers=SOURCES_HEADERS,
-                            datatype=["number", "str", "str", "str", "str"],
-                            label=None,
-                            interactive=False,
-                            wrap=True,
+                        sources_out = gr.Markdown(
+                            "_Ask a question to see sources here._",
                             elem_classes=["src-table"],
-                            max_height=260,
                         )
 
                 # Thinking trace accordion (below both columns)
@@ -325,7 +319,7 @@ def build_ui() -> gr.Blocks:
                     fn=lambda: "", inputs=None, outputs=msg_box
                 )
                 clear_btn.click(
-                    fn=lambda: ([], "_Chat cleared._", [], "**Confidence:** —", "**Query type:** —"),
+                    fn=lambda: ([], "_Chat cleared._", "_No sources._", "**Confidence:** —", "**Query type:** —"),
                     inputs=None,
                     outputs=_outs,
                 )
