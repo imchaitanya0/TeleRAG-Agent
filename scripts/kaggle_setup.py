@@ -293,6 +293,21 @@ del model, tokenizer
 torch.cuda.empty_cache()
 print("\n  ✅ All models downloaded and verified!")
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 5.5. GENERATE SYNTHETIC DATA FOR UI TABS
+# ─────────────────────────────────────────────────────────────────────────────
+banner("STEP 5.5/6 — Generate Synthetic Data for Analyzers")
+synthetic_alarms = REPO_DIR / "data" / "synthetic" / "alarms.json"
+synthetic_kpis = REPO_DIR / "data" / "synthetic" / "kpis.csv"
+
+if not synthetic_alarms.exists() or not synthetic_kpis.exists():
+    print("  Generating synthetic data (alarms & KPIs) ...")
+    run(f"{sys.executable} {REPO_DIR}/src/data/synthetic_alarms.py", check=False)
+    run(f"{sys.executable} {REPO_DIR}/src/data/synthetic_kpis.py", check=False)
+    print("  ✅ Synthetic data generated.")
+else:
+    print("  ✅ Synthetic data already exists.")
+
 if args.no_launch:
     print("\n--no-launch: setup complete, UI not started.")
     sys.exit(0)
