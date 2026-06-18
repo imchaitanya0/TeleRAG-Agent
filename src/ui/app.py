@@ -113,7 +113,7 @@ def chat(user_message: str, history: list):
     on each update so the UI streams changes in real time.
     """
     if not user_message or not user_message.strip():
-        yield history, "_Empty query — please ask a question._", [], "—", "—"
+        yield history, "_Empty query — please ask a question._", "_No sources._", "—", "—"
         return
 
     # 1 ── Security: sanitize ────────────────────────────────
@@ -130,7 +130,7 @@ def chat(user_message: str, history: list):
                 {"role": "assistant", "content": err},
             ],
             "_Query blocked by security filter._",
-            [], "0%", "🔒 Blocked",
+            "_No sources._", "0%", "🔒 Blocked",
         )
         return
 
@@ -145,7 +145,7 @@ def chat(user_message: str, history: list):
             {"role": "assistant", "content": "⏳ _Thinking…_"},
         ],
         thinking_placeholder,
-        [],
+        "_Retrieving sources…_",
         "—",
         "—",
     )
@@ -164,7 +164,7 @@ def chat(user_message: str, history: list):
                 {"role": "assistant", "content": err},
             ],
             f"_Error: {exc}_",
-            [], "0%", "❌",
+            "_No sources._", "0%", "❌",
         )
         return
 
@@ -261,12 +261,21 @@ def build_ui() -> gr.Blocks:
 
                     # Left: chat + input
                     with gr.Column(scale=3):
-                        chatbot = gr.Chatbot(
+                        import gradio as _gr_version_check
+                        import importlib.metadata as _imeta
+                        try:
+                            _gradio_major = int(_imeta.version("gradio").split(".")[0])
+                        except Exception:
+                            _gradio_major = 3
+                        _chatbot_kwargs = dict(
                             label="TeleRAG-Agent",
                             height=460,
                             show_label=False,
-                            layout="bubble",
                         )
+                        if _gradio_major >= 4:
+                            _chatbot_kwargs["type"] = "messages"
+                            _chatbot_kwargs["allow_tags"] = False
+                        chatbot = gr.Chatbot(**_chatbot_kwargs)
 
                         with gr.Row():
                             msg_box = gr.Textbox(
