@@ -460,15 +460,37 @@ def main():
     parser.add_argument("--debug",  action="store_true")
     args = parser.parse_args()
 
+    import importlib.metadata as _imeta
+    try:
+        _gradio_major = int(_imeta.version("gradio").split(".")[0])
+    except Exception:
+        _gradio_major = 3
+
     demo = build_ui()
-    demo.queue(max_size=10)
-    demo.launch(
-        server_name=args.server_name,
-        server_port=args.server_port,
-        share=args.share,
-        debug=args.debug,
-    )
+
+    # queue() args changed between versions
+    try:
+        demo.queue(max_size=10)
+    except TypeError:
+        demo.queue()
+
+    # launch() args differ between Gradio 3.x and 5.x
+    launch_kwargs = dict(share=args.share)
+    if _gradio_major < 5:
+        launch_kwargs["server_name"] = args.server_name
+        launch_kwargs["server_port"] = args.server_port
+        launch_kwargs["debug"] = args.debug
+    else:
+        # Gradio 5.x: server_name/server_port moved, use safe subset
+        try:
+            launch_kwargs["server_port"] = args.server_port
+        except Exception:
+            pass
+
+    print(f"[TeleRAG] Launching Gradio {_gradio_major}.x (share={args.share}) ...", flush=True)
+    demo.launch(**launch_kwargs)
 
 
 if __name__ == "__main__":
     main()
+

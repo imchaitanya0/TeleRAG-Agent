@@ -301,21 +301,15 @@ if args.no_launch:
 # 6. LAUNCH GRADIO
 # ─────────────────────────────────────────────────────────────────────────────
 banner("STEP 6/6 — Launch Gradio UI")
-print("  Models are cached — UI should start in ~30s")
-print("  Look for the gradio.live URL below\n" + "-"*60)
+print("  Building UI and launching server in this process ...")
+print("  The gradio.live URL will appear below. Ctrl+C to stop.\n" + "-"*60)
 
-env = os.environ.copy()
-env["QDRANT_URL"] = ""
-
-cmd = [sys.executable, str(REPO_DIR / "src" / "ui" / "app.py")]
+# Run in-process: avoids subprocess buffering and hidden crashes.
+# All errors and the gradio.live URL will be visible directly here.
+sys.argv = ["app.py"]
 if args.share:
-    cmd.append("--share")
+    sys.argv.append("--share")
 
-proc = subprocess.Popen(
-    cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-    text=True, bufsize=1, env=env, cwd=str(REPO_DIR),
-)
-for line in proc.stdout:
-    print(line, end="", flush=True)
-proc.wait()
-print(f"\nExit code: {proc.returncode}")
+from src.ui.app import main as launch_ui
+launch_ui()
+
