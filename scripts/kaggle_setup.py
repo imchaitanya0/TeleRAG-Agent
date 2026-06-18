@@ -3,7 +3,8 @@
 scripts/kaggle_setup.py
 
 BULLETPROOF Kaggle launcher for TeleRAG-Agent.
-Handles EVERY known compatibility issue between our code and Kaggle's environment.
+Tested against Kaggle's June 2026 environment:
+  - Python 3.12, PyTorch 2.10.0+cu128, Gradio 5.50, Tesla T4
 
 Usage (paste in a Kaggle notebook cell):
     !python /kaggle/working/TeleRAG-Agent/scripts/kaggle_setup.py \
@@ -35,7 +36,7 @@ REPO_DIR = Path(__file__).resolve().parent.parent
 QDRANT_DEST = REPO_DIR / "data" / "qdrant_storage"
 
 def banner(msg):
-    print(f"\n{'═'*60}\n  {msg}\n{'═'*60}")
+    print(f"\n{'═'*60}\n  {msg}\n{'═'*60}", flush=True)
 
 def run(cmd, check=True):
     ret = os.system(cmd)
@@ -58,62 +59,88 @@ if torch.cuda.is_available():
     print(f"  GPU RAM: {free/1e9:.1f} GB free / {total/1e9:.1f} GB total")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2. MONKEY-PATCH torch._utils FOR COMPATIBILITY
-#    PyTorch 2.10+ removed _maybe_view_chunk_cat but sentence-transformers
-#    2.7.0 still references it internally. We polyfill it.
+# 2. INSTALL DEPENDENCIES
+#    KEY INSIGHT: We DO NOT pin sentence-transformers to 2.7.0 anymore.
+#    That old version is INCOMPATIBLE with PyTorch 2.10 (missing torch._utils
+#    internal functions). Since v3.0+, torchcodec is OPTIONAL — only needed
+#    for audio/video embedding, which we don't use.
+#    We use Kaggle's pre-installed Gradio 5.50 (our UI is now compatible).
 # ─────────────────────────────────────────────────────────────────────────────
-banner("STEP 2/6 — Patch PyTorch + Install Dependencies")
+banner("STEP 2/6 — Install Dependencies")
 
-print("  [2a] Patching torch._utils._maybe_view_chunk_cat ...")
-import torch._utils
-if not hasattr(torch._utils, '_maybe_view_chunk_cat'):
-    def _maybe_view_chunk_cat(tensors, dim):
-        return torch.cat(tensors, dim)
-    torch._utils._maybe_view_chunk_cat = _maybe_view_chunk_cat
-    print("  ✅ Patch applied (torch._utils._maybe_view_chunk_cat polyfilled)")
-else:
-    print("  ✅ Already present, no patch needed")
+print("  [2a] Installing sentence-transformers (latest, PyTorch 2.10 compatible) ...")
+# Do NOT pin to 2.7.0 — it uses removed torch._utils internals.
+# Latest versions (3.x+) are compatible with PyTorch 2.10 and
+# torchcodec is OPTIONAL (only for audio/video, which we don't use).
+run("pip install -U 'sentence-transformers' -q 2>&1 | tail -5", check=False)
 
-print("  [2b] Pinning sentence-transformers==2.7.0 ...")
-run("pip install 'sentence-transformers==2.7.0' --force-reinstall -q 2>&1 | tail -3", check=False)
-
-print("  [2c] Installing remaining deps (NOT touching Gradio — using Kaggle's built-in) ...")
-# IMPORTANT: We do NOT install gradio here. Kaggle ships with Gradio 5.50.
-# Our UI code is now compatible with both Gradio 4.x and 5.x.
+print("  [2b] Installing remaining deps ...")
 run("""pip install \
     'langgraph>=0.2.0' 'langchain-core>=0.2.0' \
     'qdrant-client>=1.9.0' 'fastembed>=0.3.6' \
     'FlagEmbedding>=1.2.0' \
     'python-dotenv' 'pyyaml' 'networkx' 'tqdm' \
-    -q 2>&1 | tail -3""", check=False)
+    -q 2>&1 | tail -5""", check=False)
 
-# Verify
+# Verify imports
+print("\n  Verifying critical imports ...")
 import importlib
+errors = []
+
 try:
-    import sentence_transformers as st
-    importlib.reload(st)
-    print(f"  ✅ sentence-transformers: {st.__version__}")
+    import sentence_transformers
+    importlib.reload(sentence_transformers)
+    print(f"  ✅ sentence-transformers: {sentence_transformers.__version__}")
 except Exception as e:
-    print(f"  ❌ import failed: {e}")
-    sys.exit(1)
+    errors.append(f"sentence-transformers: {e}")
+    print(f"  ❌ sentence-transformers: {e}")
 
 try:
     import gradio
-    print(f"  ✅ gradio: {gradio.__version__} (Kaggle built-in, not downgraded)")
+    print(f"  ✅ gradio: {gradio.__version__}")
 except Exception as e:
-    print(f"  ⚠ gradio not found, installing...")
-    run("pip install gradio -q 2>&1 | tail -3", check=False)
+    errors.append(f"gradio: {e}")
+    print(f"  ❌ gradio: {e}")
+
+try:
+    import langgraph
+    print(f"  ✅ langgraph: {langgraph.__version__}")
+except Exception as e:
+    errors.append(f"langgraph: {e}")
+    print(f"  ❌ langgraph: {e}")
+
+try:
+    from qdrant_client import QdrantClient
+    print(f"  ✅ qdrant-client: OK")
+except Exception as e:
+    errors.append(f"qdrant-client: {e}")
+    print(f"  ❌ qdrant-client: {e}")
+
+try:
+    from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+    print(f"  ✅ transformers: OK")
+except Exception as e:
+    errors.append(f"transformers: {e}")
+    print(f"  ❌ transformers: {e}")
+
+if errors:
+    print(f"\n  ❌ {len(errors)} import error(s)! Cannot proceed.")
+    for e in errors:
+        print(f"     - {e}")
+    sys.exit(1)
+else:
+    print(f"\n  ✅ All imports verified!")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 3. ENVIRONMENT VARIABLES — CRITICAL FOR KAGGLE
 # ─────────────────────────────────────────────────────────────────────────────
 banner("STEP 3/6 — Configure Environment for Kaggle")
 
-# FIX: The .env file sets QDRANT_URL=http://localhost:6333 which tries
-# to connect to a Docker server that doesn't exist on Kaggle.
+# The .env file sets QDRANT_URL=http://localhost:6333 which tries to connect
+# to a Docker server that doesn't exist on Kaggle. We clear it.
 os.environ.pop("QDRANT_URL", None)
 os.environ["QDRANT_URL"] = ""
-print("  ✅ Cleared QDRANT_URL (forces local disk mode, no Docker needed)")
+print("  ✅ Cleared QDRANT_URL (forces local disk mode)")
 
 # Set HF token
 hf_token = None
@@ -161,6 +188,7 @@ else:
     print(f"  ⚠ {qdrant_src} not found!")
     avail = list(Path("/kaggle/input").iterdir()) if Path("/kaggle/input").exists() else []
     print(f"  Available: {[p.name for p in avail]}")
+    print("  Fix --qdrant-path and re-run.")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 5. PRE-DOWNLOAD ALL MODELS WITH PROGRESS
@@ -171,7 +199,10 @@ LLM_MODEL_ID    = "AliMaatouk/LLama-3-8B-Tele-it"
 EMBED_MODEL_ID  = "BAAI/bge-large-en-v1.5"
 RERANK_MODEL_ID = "BAAI/bge-reranker-v2-m3"
 
-print(f"  Models: {LLM_MODEL_ID}, {EMBED_MODEL_ID}, {RERANK_MODEL_ID}")
+print(f"  Models:")
+print(f"    1. {LLM_MODEL_ID}")
+print(f"    2. {EMBED_MODEL_ID}")
+print(f"    3. {RERANK_MODEL_ID}")
 
 # ── Embedder ──
 print(f"\n  [5a] Embedding model ({EMBED_MODEL_ID}) ...")
@@ -194,7 +225,6 @@ del reranker
 print(f"\n  [5c] LLM ({LLM_MODEL_ID}) ...")
 print("  ⏳ Downloading ~16GB — expect 10-20 min on first run")
 t0 = time.time()
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 
 tokenizer = AutoTokenizer.from_pretrained(LLM_MODEL_ID)
 if tokenizer.pad_token is None:
@@ -222,7 +252,7 @@ print(f"  ✅ Inference test: {resp[:120]!r}")
 
 del model, tokenizer
 torch.cuda.empty_cache()
-print("\n  ✅ All models verified!")
+print("\n  ✅ All models downloaded and verified!")
 
 if args.no_launch:
     print("\n--no-launch: setup complete, UI not started.")
@@ -230,72 +260,15 @@ if args.no_launch:
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 6. LAUNCH GRADIO
-#    We launch as a subprocess but MUST apply the torch patch there too.
-#    We do this by writing a tiny wrapper that patches + runs app.py.
 # ─────────────────────────────────────────────────────────────────────────────
 banner("STEP 6/6 — Launch Gradio UI")
 print("  Models are cached — UI should start in ~30s")
 print("  Look for the gradio.live URL below\n" + "-"*60)
 
-# Write a wrapper script so the subprocess also has the torch._utils patch
-wrapper = REPO_DIR / "scripts" / "_launch_patched.py"
-wrapper.write_text(f'''#!/usr/bin/env python3
-"""Auto-generated wrapper that patches torch._utils before launching app.py."""
-import sys, os
-sys.path.insert(0, "{REPO_DIR}")
-os.chdir("{REPO_DIR}")
-
-# Clear QDRANT_URL to force local disk mode
-os.environ["QDRANT_URL"] = ""
-
-# Patch torch._utils for PyTorch 2.10+ compatibility
-import torch._utils
-if not hasattr(torch._utils, "_maybe_view_chunk_cat"):
-    def _maybe_view_chunk_cat(tensors, dim):
-        import torch
-        return torch.cat(tensors, dim)
-    torch._utils._maybe_view_chunk_cat = _maybe_view_chunk_cat
-
-# Now launch the actual app
-from src.ui.app import main
-main()
-''')
-
 env = os.environ.copy()
 env["QDRANT_URL"] = ""
 
-cmd = [sys.executable, str(wrapper)]
-if args.share:
-    cmd.extend(["--share"])
-
-# We need to pass --share via sys.argv since the wrapper calls main()
-# Actually, let's just pass it through the wrapper directly
-wrapper.write_text(f'''#!/usr/bin/env python3
-"""Auto-generated wrapper that patches torch._utils before launching app.py."""
-import sys, os
-sys.path.insert(0, "{REPO_DIR}")
-os.chdir("{REPO_DIR}")
-
-# Clear QDRANT_URL to force local disk mode
-os.environ["QDRANT_URL"] = ""
-
-# Patch torch._utils for PyTorch 2.10+ compatibility
-import torch._utils
-if not hasattr(torch._utils, "_maybe_view_chunk_cat"):
-    def _maybe_view_chunk_cat(tensors, dim):
-        import torch
-        return torch.cat(tensors, dim)
-    torch._utils._maybe_view_chunk_cat = _maybe_view_chunk_cat
-
-# Forward CLI args (e.g. --share)
-sys.argv = ["app.py"] + sys.argv[1:]
-
-# Now launch the actual app
-from src.ui.app import main
-main()
-''')
-
-cmd = [sys.executable, str(wrapper)]
+cmd = [sys.executable, str(REPO_DIR / "src" / "ui" / "app.py")]
 if args.share:
     cmd.append("--share")
 
