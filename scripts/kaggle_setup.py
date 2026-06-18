@@ -85,43 +85,81 @@ run("""pip install \
 # Verify imports
 print("\n  Verifying critical imports ...")
 import importlib
+import importlib.metadata
 errors = []
+
+def get_version(pkg_name: str, module=None) -> str:
+    """Get version via importlib.metadata (works even if __version__ is absent)."""
+    try:
+        return importlib.metadata.version(pkg_name)
+    except Exception:
+        if module and hasattr(module, "__version__"):
+            return module.__version__
+        return "installed"
 
 try:
     import sentence_transformers
-    importlib.reload(sentence_transformers)
-    print(f"  ✅ sentence-transformers: {sentence_transformers.__version__}")
+    v = get_version("sentence-transformers", sentence_transformers)
+    print(f"  ✅ sentence-transformers: {v}")
 except Exception as e:
     errors.append(f"sentence-transformers: {e}")
     print(f"  ❌ sentence-transformers: {e}")
 
 try:
     import gradio
-    print(f"  ✅ gradio: {gradio.__version__}")
+    v = get_version("gradio", gradio)
+    print(f"  ✅ gradio: {v}")
 except Exception as e:
     errors.append(f"gradio: {e}")
     print(f"  ❌ gradio: {e}")
 
 try:
-    import langgraph
-    print(f"  ✅ langgraph: {langgraph.__version__}")
+    import langgraph  # noqa — may not have __version__
+    v = get_version("langgraph", langgraph)
+    print(f"  ✅ langgraph: {v}")
 except Exception as e:
     errors.append(f"langgraph: {e}")
     print(f"  ❌ langgraph: {e}")
 
 try:
+    import langchain_core
+    v = get_version("langchain-core", langchain_core)
+    print(f"  ✅ langchain-core: {v}")
+except Exception as e:
+    errors.append(f"langchain-core: {e}")
+    print(f"  ❌ langchain-core: {e}")
+
+try:
     from qdrant_client import QdrantClient
-    print(f"  ✅ qdrant-client: OK")
+    v = get_version("qdrant-client")
+    print(f"  ✅ qdrant-client: {v}")
 except Exception as e:
     errors.append(f"qdrant-client: {e}")
     print(f"  ❌ qdrant-client: {e}")
 
 try:
     from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-    print(f"  ✅ transformers: OK")
+    v = get_version("transformers")
+    print(f"  ✅ transformers: {v}")
 except Exception as e:
     errors.append(f"transformers: {e}")
     print(f"  ❌ transformers: {e}")
+
+try:
+    import fastembed  # noqa
+    v = get_version("fastembed", fastembed)
+    print(f"  ✅ fastembed: {v}")
+except Exception as e:
+    errors.append(f"fastembed: {e}")
+    print(f"  ❌ fastembed: {e}")
+
+try:
+    import networkx  # noqa
+    v = get_version("networkx", networkx)
+    print(f"  ✅ networkx: {v}")
+except Exception as e:
+    errors.append(f"networkx: {e}")
+    print(f"  ❌ networkx: {e}")
 
 if errors:
     print(f"\n  ❌ {len(errors)} import error(s)! Cannot proceed.")
