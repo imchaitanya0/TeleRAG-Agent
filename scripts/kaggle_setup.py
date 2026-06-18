@@ -79,6 +79,7 @@ run("""pip install \
     'langgraph>=0.2.0' 'langchain-core>=0.2.0' \
     'qdrant-client>=1.9.0' 'fastembed>=0.3.6' \
     'FlagEmbedding>=1.2.0' \
+    'bitsandbytes>=0.46.1' \
     'python-dotenv' 'pyyaml' 'networkx' 'tqdm' \
     -q 2>&1 | tail -5""", check=False)
 
