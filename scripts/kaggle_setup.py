@@ -308,6 +308,30 @@ if not synthetic_alarms.exists() or not synthetic_kpis.exists():
 else:
     print("  ✅ Synthetic data already exists.")
 
+# ── TeleQnA splits (needed for evaluation / ablation study) ──
+teleqna_test = REPO_DIR / "data" / "processed" / "teleqna_test.jsonl"
+if not teleqna_test.exists():
+    import glob as _glob
+    teleqna_raw = _glob.glob("/kaggle/input/**/TeleQnA.json", recursive=True)
+    if teleqna_raw:
+        print(f"  Found TeleQnA.json at {teleqna_raw[0]} — generating splits ...")
+        raw_dest = REPO_DIR / "data" / "raw" / "teleqna" / "TeleQnA.json"
+        raw_dest.parent.mkdir(parents=True, exist_ok=True)
+        if not raw_dest.exists():
+            shutil.copy(teleqna_raw[0], str(raw_dest))
+        run(f"{sys.executable} {REPO_DIR}/src/data/teleqna_prep.py", check=False)
+        if teleqna_test.exists():
+            print("  ✅ TeleQnA splits generated (test/val/train).")
+        else:
+            print("  ⚠  TeleQnA split generation failed — eval will use synthetic Qs.")
+    else:
+        print("  ⚠  TeleQnA.json not found in /kaggle/input — add the Kaggle dataset:")
+        print("     https://www.kaggle.com/datasets/netop-team/teleqna")
+        print("     Evaluation will fall back to 5 synthetic questions.")
+else:
+    print("  ✅ TeleQnA processed splits already exist.")
+
+
 if args.no_launch:
     print("\n--no-launch: setup complete, UI not started.")
     sys.exit(0)

@@ -62,22 +62,23 @@ def banner(msg):
 # ─────────────────────────────────────────────────────────────────────────────
 def load_golden_questions(n: int) -> list[dict]:
     """
-    Load up to n questions from the TeleQnA test set.
-    Falls back to val set if test set is smaller than n.
+    Load up to n questions for evaluation.
+    Search order:
+      1. data/processed/teleqna_test.jsonl (local)
+      2. data/processed/teleqna_val.jsonl  (local)
+      3. /kaggle/input/**/TeleQnA.json    (Kaggle native dataset)
+      4. data/raw/teleqna/TeleQnA.json    (downloaded raw)
+      5. Hardcoded synthetic (fallback)
     """
-    from src.config import DATA_PROCESSED_DIR
     import json
-
-    # Try different file paths
-    candidates = [
-        DATA_PROCESSED_DIR / "teleqna_test.jsonl",
-        DATA_PROCESSED_DIR / "teleqna_val.jsonl",
-        REPO_DIR / "data" / "processed" / "teleqna_test.jsonl",
-        REPO_DIR / "data" / "processed" / "teleqna_val.jsonl",
-    ]
+    from pathlib import Path
+    from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR
 
     questions = []
-    for path in candidates:
+
+    # ── 1 & 2: processed JSONL splits ────────────────────────────
+    for fname in ["teleqna_test.jsonl", "teleqna_val.jsonl"]:
+        path = DATA_PROCESSED_DIR / fname
         if path.exists():
             with open(path) as f:
                 for line in f:
@@ -88,31 +89,95 @@ def load_golden_questions(n: int) -> list[dict]:
                         raw = json.loads(line)
                     except json.JSONDecodeError:
                         continue
-
-                    # Normalize to our eval format
-                    q = {
-                        "question": raw.get("question", raw.get("instruction", "")),
-                        "options":  raw.get("options", []),
-                        "answer":   raw.get("answer", raw.get("output", "")),
-                        "gold_specs": raw.get("gold_specs", []),
-                    }
-
-                    # Normalize answer to letter (A/B/C/D/E)
-                    ans = q["answer"].strip()
+                    # Normalize format
+                    q_text = raw.get("question") or raw.get("input", "")
+                    opts_raw = raw.get("options", [])
+                    ans = raw.get("answer") or raw.get("output", "")
+                    # Strip "The answer is: " prefix if present
+                    ans = ans.replace("The answer is:", "").strip()
                     if ans and ans[0].isdigit():
-                        # Convert "1" → "A", "2" → "B", etc.
-                        idx = int(ans[0]) - 1
-                        if 0 <= idx <= 4:
-                            q["answer"] = chr(65 + idx)
+                        ans = chr(64 + int(ans[0]))
+                    if q_text and opts_raw and ans:
+                        questions.append({
+                            "question": q_text,
+                            "options": opts_raw if isinstance(opts_raw, list) else [],
+                            "answer": ans[0].upper() if ans else "",
+                            "gold_specs": raw.get("gold_specs", []),
+                        })
+            if questions:
+                print(f"  Loaded {len(questions)} questions from {path.name}")
+                break
 
-                    if q["question"] and q["options"] and q["answer"]:
-                        questions.append(q)
-
-            print(f"  Loaded {len(questions)} questions from {path.name}")
-            break
-
+    # ── 3: Kaggle native TeleQnA dataset ─────────────────────────
     if not questions:
-        print("  ⚠ No golden questions found. Generating synthetic test questions...")
+        kaggle_input = Path("/kaggle/input")
+        if kaggle_input.exists():
+            for teleqna_json in kaggle_input.rglob("TeleQnA.json"):
+                try:
+                    with open(teleqna_json) as f:
+                        data = json.load(f)
+                    raw_qs = list(data.values()) if isinstance(data, dict) else data
+                    for raw in raw_qs:
+                        q_text = raw.get("question", "")
+                        opts = [raw.get(f"option {i}", "") for i in range(1, 6)
+                                if raw.get(f"option {i}")]
+                        ans_raw = raw.get("answer", "")
+                        # answer is like "option 1" or "A"
+                        letter = ""
+                        if ans_raw.startswith("option "):
+                            try:
+                                idx = int(ans_raw.split()[1]) - 1
+                                letter = chr(65 + idx)
+                            except (ValueError, IndexError):
+                                pass
+                        elif ans_raw and ans_raw[0].isalpha():
+                            letter = ans_raw[0].upper()
+                        if q_text and opts and letter:
+                            questions.append({
+                                "question": q_text,
+                                "options": opts,
+                                "answer": letter,
+                                "gold_specs": [],
+                            })
+                    if questions:
+                        print(f"  Loaded {len(questions)} questions from {teleqna_json}")
+                        import random; random.seed(42); random.shuffle(questions)
+                        break
+                except Exception as e:
+                    print(f"  ⚠ Failed to load {teleqna_json}: {e}")
+
+    # ── 4: Raw TeleQnA JSON ───────────────────────────────────────
+    if not questions:
+        raw_path = DATA_RAW_DIR / "teleqna" / "TeleQnA.json"
+        if raw_path.exists():
+            with open(raw_path) as f:
+                data = json.load(f)
+            raw_qs = list(data.values()) if isinstance(data, dict) else data
+            for raw in raw_qs:
+                q_text = raw.get("question", "")
+                opts = [raw.get(f"option {i}", "") for i in range(1, 6)
+                        if raw.get(f"option {i}")]
+                ans_raw = raw.get("answer", "")
+                letter = ""
+                if ans_raw.startswith("option "):
+                    try:
+                        idx = int(ans_raw.split()[1]) - 1
+                        letter = chr(65 + idx)
+                    except (ValueError, IndexError):
+                        pass
+                elif ans_raw and ans_raw[0].isalpha():
+                    letter = ans_raw[0].upper()
+                if q_text and opts and letter:
+                    questions.append({"question": q_text, "options": opts,
+                                      "answer": letter, "gold_specs": []})
+            if questions:
+                print(f"  Loaded {len(questions)} questions from {raw_path}")
+                import random; random.seed(42); random.shuffle(questions)
+
+    # ── 5: Synthetic fallback ─────────────────────────────────────
+    if not questions:
+        print("  ⚠ No real TeleQnA data found — using 5 synthetic questions.")
+        print("    Run: python src/data/teleqna_prep.py  (needs TeleQnA.json)")
         questions = _synthetic_questions()
 
     return questions[:n]
@@ -227,10 +292,11 @@ elif args.mode == "accuracy":
     )
 
     print(f"\n  Results:")
-    print(f"    Accuracy:        {results['accuracy']*100:.1f}%  ({results['n_correct']}/{results['n_questions']-results['n_abstained']} answered)")
-    print(f"    Exact Match:     {results['exact_match']*100:.1f}%  (incl. abstentions)")
-    print(f"    Abstention Rate: {results['abstention_rate']*100:.1f}%")
+    print(f"    Exact Match:     {results['exact_match']*100:.1f}%  ({results['n_correct']}/{results['n_questions']} total)")
+    print(f"    Accuracy*:       {results['accuracy']*100:.1f}%  ({results['n_correct']}/{results['n_questions']-results['n_abstained']} answered only)")
+    print(f"    Abstention Rate: {results['abstention_rate']*100:.1f}%  ({results['n_abstained']} questions)")
     print(f"    Avg latency:     {results['avg_latency_ms']:.0f}ms")
+    print(f"    * Accuracy excludes abstentions — use Exact Match for fair comparison")
 
     out = {"mode": "accuracy", "lora": lora, **results}
     out_path = OUT_DIR / f"accuracy_{timestamp}.json"

@@ -58,7 +58,7 @@ EXPERIMENTS = [
         "name":        "No Fine-tuning",
         "description": "Full retrieval pipeline but base LLM (no LoRA adapter)",
         "use_reranker": True,
-        "lora_repo":    None,
+        "lora_repo":    None,       # base model only
         "sparse_only":  False,
     },
 ]
@@ -100,19 +100,28 @@ def run_ablation(
         save_path:  If given, save results JSON here
 
     Returns:
-        List of dicts, one per experiment:
-        {
-            "name":            str,
-            "description":     str,
-            "accuracy":        float,
-            "mrr_at_10":       float,
-            "recall_at_5":     float,
-            "avg_latency_ms":  float,
-            "n_questions":     int,
-        }
+        List of dicts, one per experiment.
     """
     subset = questions[:n]
     results = []
+
+    # ── Pre-load the LLM ONCE ──────────────────────────────────────────
+    # The 8B model takes ~90s to load. Loading it once and reusing
+    # across all 4 experiments saves ~270 seconds total.
+    # We pre-warm with the LoRA adapter; the "No Fine-tuning" experiment
+    # passes lora_repo=None so the inference wrapper skips the adapter.
+    if verbose:
+        print("\n  Pre-loading LLM (done once for all experiments)...")
+    try:
+        from src.models.loader import get_model_and_tokenizer
+        _model, _tokenizer = get_model_and_tokenizer(lora_repo=None)  # base model
+        if verbose:
+            print("  ✅ LLM pre-loaded (base model, no LoRA)")
+    except Exception as e:
+        if verbose:
+            print(f"  ⚠ Could not pre-load LLM: {e}")
+
+    import src.retrieval.fusion as fusion_mod
 
     for exp in EXPERIMENTS:
         if verbose:
@@ -140,7 +149,7 @@ def run_ablation(
                 verbose=False,
             )
 
-            # Answer accuracy metrics (needs LLM)
+            # Answer accuracy metrics (uses pre-loaded LLM)
             ans_metrics = evaluate_answers(
                 subset,
                 use_rag=True,
@@ -152,26 +161,35 @@ def run_ablation(
             elapsed = time.time() - t0
 
             row = {
-                "name":           exp["name"],
-                "description":    exp["description"],
-                "accuracy":       ans_metrics["accuracy"],
-                "exact_match":    ans_metrics["exact_match"],
+                "name":            exp["name"],
+                "description":     exp["description"],
+                # Use exact_match as PRIMARY metric: denominator=n (includes abstentions)
+                # This prevents inflated accuracy when model abstains on hard questions.
+                "accuracy":        ans_metrics["exact_match"],   # primary for table
+                "accuracy_answered": ans_metrics["accuracy"],    # secondary (excl. abstentions)
+                "exact_match":     ans_metrics["exact_match"],
                 "abstention_rate": ans_metrics["abstention_rate"],
-                "mrr_at_10":      ret_metrics["mrr_at_k"],
-                "recall_at_5":    ret_metrics["recall_at_5"],
-                "recall_at_1":    ret_metrics["recall_at_1"],
-                "avg_latency_ms": ans_metrics["avg_latency_ms"],
-                "total_time_min": round(elapsed / 60, 1),
-                "n_questions":    len(subset),
+                "mrr_at_10":       ret_metrics["mrr_at_k"],
+                "recall_at_5":     ret_metrics["recall_at_5"],
+                "recall_at_1":     ret_metrics["recall_at_1"],
+                "avg_latency_ms":  ans_metrics["avg_latency_ms"],
+                "total_time_min":  round(elapsed / 60, 1),
+                "n_questions":     len(subset),
+                "n_correct":       ans_metrics["n_correct"],
+                "n_abstained":     ans_metrics["n_abstained"],
             }
             results.append(row)
 
             if verbose:
                 print(f"\n  ✅ Results:")
-                print(f"     Accuracy:   {row['accuracy']*100:.1f}%")
-                print(f"     MRR@10:     {row['mrr_at_10']:.4f}")
-                print(f"     Recall@5:   {row['recall_at_5']*100:.1f}%")
-                print(f"     Latency:    {row['avg_latency_ms']:.0f}ms/query")
+                print(f"     Exact Match:  {row['exact_match']*100:.1f}%  "
+                      f"({row['n_correct']}/{len(subset)} total)")
+                print(f"     Accuracy*:    {row['accuracy_answered']*100:.1f}%  "
+                      f"({row['n_correct']}/{len(subset)-row['n_abstained']} answered)")
+                print(f"     Abstentions:  {row['abstention_rate']*100:.1f}%")
+                print(f"     MRR@10:       {row['mrr_at_10']:.4f}")
+                print(f"     Recall@5:     {row['recall_at_5']*100:.1f}%")
+                print(f"     Latency:      {row['avg_latency_ms']:.0f}ms/query")
 
         finally:
             # Restore original retriever
