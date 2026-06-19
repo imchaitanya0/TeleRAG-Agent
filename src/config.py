@@ -57,7 +57,8 @@ LEARNING_RATE = 2e-4
 HF_TOKEN = os.getenv("HF_TOKEN")
 
 # LoRA adapter (published to HuggingFace after fine-tuning)
-LORA_REPO = "chaitanyakadupukutla/TeleRAG-LoRA"
+LORA_REPO = "Imchaitanya/TeleRAG-LoRA"
+
 
 # Alias used in some modules
 RERANK_MODEL_ID = RERANKER_MODEL_ID

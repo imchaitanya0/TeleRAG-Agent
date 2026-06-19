@@ -101,7 +101,8 @@ query
 | `AliMaatouk/LLama-3-8B-Tele-it` | Answer generation | 8B params | 4-bit NF4 (bitsandbytes) |
 | `BAAI/bge-large-en-v1.5` | Dense embeddings | 335M params | FP32 |
 | `BAAI/bge-reranker-v2-m3` | Cross-encoder reranking | 568M params | FP32 |
-| `chaitanyakadupukutla/TeleRAG-LoRA` | LoRA fine-tuned adapter | 20M params | merged at inference |
+| `Imchaitanya/TeleRAG-LoRA` | LoRA fine-tuned adapter | 20M params | merged at inference |
+
 
 The model loader (`src/models/loader.py`) uses a singleton pattern — the LLM is loaded once and cached for the lifetime of the process.
 

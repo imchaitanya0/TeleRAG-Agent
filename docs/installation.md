@@ -29,12 +29,13 @@ cp .env.example .env
 ## Set Up the Knowledge Base (Qdrant)
 
 The pre-built Qdrant database is available as a Kaggle dataset:
-`chaitanyakadupukutla/telerag-qdrant-db`
+`imchaitanya/telerag-qdrant-db`
 
 ```bash
 # Download and extract to data/qdrant_storage/
 # Option 1: Kaggle CLI
-kaggle datasets download chaitanyakadupukutla/telerag-qdrant-db
+kaggle datasets download imchaitanya/telerag-qdrant-db
+
 unzip telerag-qdrant-db.zip -d data/qdrant_storage/
 
 # Option 2: Manual download from Kaggle and extract

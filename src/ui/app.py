@@ -423,7 +423,8 @@ aligned with **3GPP TS 28.552** thresholds.
 - [`AliMaatouk/LLama-3-8B-Tele-it`](https://huggingface.co/AliMaatouk/LLama-3-8B-Tele-it) — base telecom LLM
 - [`BAAI/bge-large-en-v1.5`](https://huggingface.co/BAAI/bge-large-en-v1.5) — dense embeddings
 - [`BAAI/bge-reranker-v2-m3`](https://huggingface.co/BAAI/bge-reranker-v2-m3) — cross-encoder re-ranking
-- [`chaitanyakadupukutla/TeleRAG-LoRA`](https://huggingface.co/chaitanyakadupukutla/TeleRAG-LoRA) — our fine-tuned adapter
+- [`Imchaitanya/TeleRAG-LoRA`](https://huggingface.co/Imchaitanya/TeleRAG-LoRA) — our fine-tuned adapter
+
 
 ### Datasets
 - [TeleQnA](https://huggingface.co/datasets/netop-team/TeleQnA) — 10K telecom Q&A pairs
