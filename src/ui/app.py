@@ -261,19 +261,18 @@ def build_ui() -> gr.Blocks:
 
                     # Left: chat + input
                     with gr.Column(scale=3):
-                        import gradio as _gr_version_check
-                        import importlib.metadata as _imeta
-                        try:
-                            _gradio_major = int(_imeta.version("gradio").split(".")[0])
-                        except Exception:
-                            _gradio_major = 3
+                        import inspect as _inspect
+                        _chatbot_params = set(_inspect.signature(gr.Chatbot.__init__).parameters)
                         _chatbot_kwargs = dict(
                             label="TeleRAG-Agent",
                             height=460,
                             show_label=False,
                         )
-                        if _gradio_major >= 4:
+                        # 'type' exists in Gradio 4.x/5.x but was removed in 6.x
+                        if "type" in _chatbot_params:
                             _chatbot_kwargs["type"] = "messages"
+                        # 'allow_tags' exists in Gradio 5.x/6.x
+                        if "allow_tags" in _chatbot_params:
                             _chatbot_kwargs["allow_tags"] = False
                         chatbot = gr.Chatbot(**_chatbot_kwargs)
 
