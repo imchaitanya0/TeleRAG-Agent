@@ -312,22 +312,33 @@ else:
 teleqna_test = REPO_DIR / "data" / "processed" / "teleqna_test.jsonl"
 if not teleqna_test.exists():
     import glob as _glob
-    teleqna_raw = _glob.glob("/kaggle/input/**/TeleQnA.json", recursive=True)
-    if teleqna_raw:
-        print(f"  Found TeleQnA.json at {teleqna_raw[0]} — generating splits ...")
-        raw_dest = REPO_DIR / "data" / "raw" / "teleqna" / "TeleQnA.json"
-        raw_dest.parent.mkdir(parents=True, exist_ok=True)
-        if not raw_dest.exists():
-            shutil.copy(teleqna_raw[0], str(raw_dest))
-        run(f"{sys.executable} {REPO_DIR}/src/data/teleqna_prep.py", check=False)
-        if teleqna_test.exists():
-            print("  ✅ TeleQnA splits generated (test/val/train).")
-        else:
-            print("  ⚠  TeleQnA split generation failed — eval will use synthetic Qs.")
+    
+    # 1. First, check if user uploaded the pre-processed splits directly
+    preprocessed_splits = _glob.glob("/kaggle/input/**/teleqna_*.jsonl", recursive=True)
+    if preprocessed_splits:
+        print(f"  Found pre-processed TeleQnA splits in Kaggle input. Copying...")
+        dest_dir = REPO_DIR / "data" / "processed"
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        for path in preprocessed_splits:
+            shutil.copy(path, str(dest_dir))
+        print("  ✅ TeleQnA processed splits are ready.")
     else:
-        print("  ⚠  TeleQnA.json not found in /kaggle/input — add the Kaggle dataset:")
-        print("     https://www.kaggle.com/datasets/netop-team/teleqna")
-        print("     Evaluation will fall back to 5 synthetic questions.")
+        # 2. Otherwise, check for the raw TeleQnA dataset
+        teleqna_raw = _glob.glob("/kaggle/input/**/TeleQnA.json", recursive=True)
+        if teleqna_raw:
+            print(f"  Found raw TeleQnA.json at {teleqna_raw[0]} — generating splits ...")
+            raw_dest = REPO_DIR / "data" / "raw" / "teleqna" / "TeleQnA.json"
+            raw_dest.parent.mkdir(parents=True, exist_ok=True)
+            if not raw_dest.exists():
+                shutil.copy(teleqna_raw[0], str(raw_dest))
+            run(f"{sys.executable} {REPO_DIR}/src/data/teleqna_prep.py", check=False)
+            if teleqna_test.exists():
+                print("  ✅ TeleQnA splits generated (test/val/train).")
+            else:
+                print("  ⚠  TeleQnA split generation failed — eval will use synthetic Qs.")
+        else:
+            print("  ⚠  TeleQnA datasets not found in /kaggle/input.")
+            print("     Evaluation will fall back to 5 synthetic questions.")
 else:
     print("  ✅ TeleQnA processed splits already exist.")
 
