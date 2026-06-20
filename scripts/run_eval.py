@@ -76,9 +76,19 @@ def load_golden_questions(n: int) -> list[dict]:
 
     questions = []
 
-    # ── 1 & 2: processed JSONL splits ────────────────────────────
-    for fname in ["teleqna_test.jsonl", "teleqna_val.jsonl"]:
-        path = DATA_PROCESSED_DIR / fname
+    # ── 1 & 2: processed JSONL splits (local and kaggle input) ──
+    search_paths = [
+        DATA_PROCESSED_DIR / "teleqna_test.jsonl",
+        DATA_PROCESSED_DIR / "teleqna_val.jsonl"
+    ]
+    
+    # Also search Kaggle inputs for pre-processed jsonl datasets
+    kaggle_input = Path("/kaggle/input")
+    if kaggle_input.exists():
+        search_paths.extend(list(kaggle_input.rglob("teleqna_test.jsonl")))
+        search_paths.extend(list(kaggle_input.rglob("teleqna_val.jsonl")))
+
+    for path in search_paths:
         if path.exists():
             with open(path) as f:
                 for line in f:
@@ -97,7 +107,7 @@ def load_golden_questions(n: int) -> list[dict]:
                     ans = ans.replace("The answer is:", "").strip()
                     if ans and ans[0].isdigit():
                         ans = chr(64 + int(ans[0]))
-                    if q_text and opts_raw and ans:
+                    if q_text and ans:
                         questions.append({
                             "question": q_text,
                             "options": opts_raw if isinstance(opts_raw, list) else [],
@@ -105,6 +115,7 @@ def load_golden_questions(n: int) -> list[dict]:
                             "gold_specs": raw.get("gold_specs", []),
                         })
             if questions:
+
                 print(f"  Loaded {len(questions)} questions from {path.name}")
                 break
 
