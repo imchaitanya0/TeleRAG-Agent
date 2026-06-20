@@ -63,25 +63,27 @@ def banner(msg):
 def load_golden_questions(n: int) -> list[dict]:
     """
     Load up to n questions for evaluation.
-    Search order:
-      1. data/processed/teleqna_test.jsonl (local)
-      2. data/processed/teleqna_val.jsonl  (local)
-      3. /kaggle/input/**/TeleQnA.json    (Kaggle native dataset)
-      4. data/raw/teleqna/TeleQnA.json    (downloaded raw)
-      5. Hardcoded synthetic (fallback)
+
+    The teleqna_test.jsonl format:
+        {"instruction": "...", "input": "Question: ...\n\nOptions:\nA) ...", "output": "The answer is: E"}
+
+    We parse this into:
+        {"question": "...", "options": ["opt1", ...], "answer": "E",
+         "input_text": "<raw input field for exact prompt match>"}
     """
     import json
+    import re
     from pathlib import Path
     from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR
 
     questions = []
 
-    # ── 1 & 2: processed JSONL splits (local and kaggle input) ──
+    # ── 1: Search for processed JSONL splits ──────────────────────
     search_paths = [
         DATA_PROCESSED_DIR / "teleqna_test.jsonl",
-        DATA_PROCESSED_DIR / "teleqna_val.jsonl"
+        DATA_PROCESSED_DIR / "teleqna_val.jsonl",
     ]
-    
+
     # Also search Kaggle inputs for pre-processed jsonl datasets
     kaggle_input = Path("/kaggle/input")
     if kaggle_input.exists():
@@ -89,106 +91,105 @@ def load_golden_questions(n: int) -> list[dict]:
         search_paths.extend(list(kaggle_input.rglob("teleqna_val.jsonl")))
 
     for path in search_paths:
-        if path.exists():
-            with open(path) as f:
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        raw = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-                    # Normalize format
-                    q_text = raw.get("question") or raw.get("input", "")
-                    opts_raw = raw.get("options", [])
-                    ans = raw.get("answer") or raw.get("output", "")
-                    # Strip "The answer is: " prefix if present
-                    ans = ans.replace("The answer is:", "").strip()
-                    if ans and ans[0].isdigit():
-                        ans = chr(64 + int(ans[0]))
-                    if q_text and ans:
+        if not path.exists():
+            continue
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    raw = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+                # ── Parse the training-format fields ──
+                input_text = raw.get("input", "")
+                output_text = raw.get("output", "")
+
+                # Extract gold letter from "The answer is: E"
+                gold_match = re.search(r"[Tt]he\s+answer\s+is[:\s]+([A-E])", output_text)
+                if gold_match:
+                    gold = gold_match.group(1).upper()
+                elif output_text.strip() and output_text.strip()[0] in "ABCDE":
+                    gold = output_text.strip()[0].upper()
+                else:
+                    continue  # skip if we can't determine the answer
+
+                # Extract question text from input (strip "Question: " prefix)
+                q_match = re.match(r"Question:\s*(.+?)(?:\n\n|\nOptions:)", input_text, re.DOTALL)
+                q_text = q_match.group(1).strip() if q_match else input_text.split("\n")[0]
+
+                # Extract individual options
+                options = []
+                opt_matches = re.findall(r"([A-E])\)\s*(.+?)(?=\n[A-E]\)|$)", input_text, re.DOTALL)
+                for _, opt_text in opt_matches:
+                    options.append(opt_text.strip())
+
+                if not input_text:
+                    continue
+
+                questions.append({
+                    "question": q_text,
+                    "options": options,
+                    "answer": gold,
+                    "input_text": input_text,   # RAW training-format input for exact prompt match
+                    "gold_specs": raw.get("gold_specs", []),
+                })
+
+        if questions:
+            print(f"  Loaded {len(questions)} questions from {path.name}")
+            break
+
+    # ── 2: Kaggle native TeleQnA.json (raw format) ───────────────
+    if not questions:
+        raw_paths = []
+        if kaggle_input.exists():
+            raw_paths.extend(list(kaggle_input.rglob("TeleQnA.json")))
+        local_raw = DATA_RAW_DIR / "teleqna" / "TeleQnA.json"
+        if local_raw.exists():
+            raw_paths.append(local_raw)
+
+        for teleqna_json in raw_paths:
+            try:
+                with open(teleqna_json) as f:
+                    data = json.load(f)
+                raw_qs = list(data.values()) if isinstance(data, dict) else data
+                for raw in raw_qs:
+                    q_text = raw.get("question", "")
+                    opts = [raw.get(f"option {i}", "") for i in range(1, 6) if raw.get(f"option {i}")]
+                    ans_raw = raw.get("answer", "")
+                    letter = ""
+                    if ans_raw.startswith("option "):
+                        try:
+                            idx = int(ans_raw.split()[1]) - 1
+                            letter = chr(65 + idx)
+                        except (ValueError, IndexError):
+                            pass
+                    elif ans_raw and ans_raw[0].isalpha():
+                        letter = ans_raw[0].upper()
+
+                    if q_text and opts and letter:
+                        # Build training-format input_text for prompt consistency
+                        opts_str = "\n".join(f"{chr(65+i)}) {o}" for i, o in enumerate(opts))
+                        input_text = f"Question: {q_text}\n\nOptions:\n{opts_str}"
                         questions.append({
                             "question": q_text,
-                            "options": opts_raw if isinstance(opts_raw, list) else [],
-                            "answer": ans[0].upper() if ans else "",
-                            "gold_specs": raw.get("gold_specs", []),
+                            "options": opts,
+                            "answer": letter,
+                            "input_text": input_text,
+                            "gold_specs": [],
                         })
-            if questions:
+                if questions:
+                    print(f"  Loaded {len(questions)} questions from {teleqna_json}")
+                    import random; random.seed(42); random.shuffle(questions)
+                    break
+            except Exception as e:
+                print(f"  ⚠ Failed to load {teleqna_json}: {e}")
 
-                print(f"  Loaded {len(questions)} questions from {path.name}")
-                break
-
-    # ── 3: Kaggle native TeleQnA dataset ─────────────────────────
-    if not questions:
-        kaggle_input = Path("/kaggle/input")
-        if kaggle_input.exists():
-            for teleqna_json in kaggle_input.rglob("TeleQnA.json"):
-                try:
-                    with open(teleqna_json) as f:
-                        data = json.load(f)
-                    raw_qs = list(data.values()) if isinstance(data, dict) else data
-                    for raw in raw_qs:
-                        q_text = raw.get("question", "")
-                        opts = [raw.get(f"option {i}", "") for i in range(1, 6)
-                                if raw.get(f"option {i}")]
-                        ans_raw = raw.get("answer", "")
-                        # answer is like "option 1" or "A"
-                        letter = ""
-                        if ans_raw.startswith("option "):
-                            try:
-                                idx = int(ans_raw.split()[1]) - 1
-                                letter = chr(65 + idx)
-                            except (ValueError, IndexError):
-                                pass
-                        elif ans_raw and ans_raw[0].isalpha():
-                            letter = ans_raw[0].upper()
-                        if q_text and opts and letter:
-                            questions.append({
-                                "question": q_text,
-                                "options": opts,
-                                "answer": letter,
-                                "gold_specs": [],
-                            })
-                    if questions:
-                        print(f"  Loaded {len(questions)} questions from {teleqna_json}")
-                        import random; random.seed(42); random.shuffle(questions)
-                        break
-                except Exception as e:
-                    print(f"  ⚠ Failed to load {teleqna_json}: {e}")
-
-    # ── 4: Raw TeleQnA JSON ───────────────────────────────────────
-    if not questions:
-        raw_path = DATA_RAW_DIR / "teleqna" / "TeleQnA.json"
-        if raw_path.exists():
-            with open(raw_path) as f:
-                data = json.load(f)
-            raw_qs = list(data.values()) if isinstance(data, dict) else data
-            for raw in raw_qs:
-                q_text = raw.get("question", "")
-                opts = [raw.get(f"option {i}", "") for i in range(1, 6)
-                        if raw.get(f"option {i}")]
-                ans_raw = raw.get("answer", "")
-                letter = ""
-                if ans_raw.startswith("option "):
-                    try:
-                        idx = int(ans_raw.split()[1]) - 1
-                        letter = chr(65 + idx)
-                    except (ValueError, IndexError):
-                        pass
-                elif ans_raw and ans_raw[0].isalpha():
-                    letter = ans_raw[0].upper()
-                if q_text and opts and letter:
-                    questions.append({"question": q_text, "options": opts,
-                                      "answer": letter, "gold_specs": []})
-            if questions:
-                print(f"  Loaded {len(questions)} questions from {raw_path}")
-                import random; random.seed(42); random.shuffle(questions)
-
-    # ── 5: Synthetic fallback ─────────────────────────────────────
+    # ── 3: Synthetic fallback ─────────────────────────────────────
     if not questions:
         print("  ⚠ No real TeleQnA data found — using 5 synthetic questions.")
-        print("    Run: python src/data/teleqna_prep.py  (needs TeleQnA.json)")
         questions = _synthetic_questions()
 
     return questions[:n]
@@ -196,55 +197,39 @@ def load_golden_questions(n: int) -> list[dict]:
 
 def _synthetic_questions() -> list[dict]:
     """Fallback: basic telecom questions for smoke-testing."""
-    return [
-        {
-            "question": "What is the primary function of the RRC protocol in 5G NR?",
-            "options": [
-                "Radio Resource Control for connection management",
-                "Radio Frequency Control for spectrum allocation",
-                "Remote Radio Control for antenna management",
-                "Rapid Resource Creation for new connections",
-            ],
-            "answer": "A",
-            "gold_specs": ["TS 38.331"],
-        },
-        {
-            "question": "Which layer is responsible for HARQ in 5G NR?",
-            "options": [
-                "RRC", "PDCP", "RLC", "MAC"
-            ],
-            "answer": "D",
-            "gold_specs": ["TS 38.321"],
-        },
-        {
-            "question": "What does DRX stand for in LTE/NR?",
-            "options": [
-                "Dynamic Radio Exchange",
-                "Discontinuous Reception",
-                "Digital Radio Extension",
-                "Dual Radio Excitation",
-            ],
-            "answer": "B",
-            "gold_specs": ["TS 38.321", "TS 36.321"],
-        },
-        {
-            "question": "What is the maximum number of HARQ processes supported in NR DL?",
-            "options": ["8", "16", "32", "4"],
-            "answer": "B",
-            "gold_specs": ["TS 38.321"],
-        },
-        {
-            "question": "In 5G NR, what is the role of the AMF in the core network?",
-            "options": [
-                "Access and Mobility Management Function",
-                "Application Media Framework",
-                "Advanced Modulation Function",
-                "Antenna Management Framework",
-            ],
-            "answer": "A",
-            "gold_specs": ["TS 23.501"],
-        },
+    synth = [
+        ("What is the primary function of the RRC protocol in 5G NR?",
+         ["Radio Resource Control for connection management",
+          "Radio Frequency Control for spectrum allocation",
+          "Remote Radio Control for antenna management",
+          "Rapid Resource Creation for new connections"],
+         "A", ["TS 38.331"]),
+        ("Which layer is responsible for HARQ in 5G NR?",
+         ["RRC", "PDCP", "RLC", "MAC"], "D", ["TS 38.321"]),
+        ("What does DRX stand for in LTE/NR?",
+         ["Dynamic Radio Exchange", "Discontinuous Reception",
+          "Digital Radio Extension", "Dual Radio Excitation"],
+         "B", ["TS 38.321", "TS 36.321"]),
+        ("What is the maximum number of HARQ processes supported in NR DL?",
+         ["8", "16", "32", "4"], "B", ["TS 38.321"]),
+        ("In 5G NR, what is the role of the AMF in the core network?",
+         ["Access and Mobility Management Function",
+          "Application Media Framework",
+          "Advanced Modulation Function",
+          "Antenna Management Framework"],
+         "A", ["TS 23.501"]),
     ]
+    result = []
+    for q, opts, ans, specs in synth:
+        opts_str = "\n".join(f"{chr(65+i)}) {o}" for i, o in enumerate(opts))
+        result.append({
+            "question": q, "options": opts, "answer": ans,
+            "input_text": f"Question: {q}\n\nOptions:\n{opts_str}",
+            "gold_specs": specs,
+        })
+    return result
+
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────

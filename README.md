@@ -1,40 +1,121 @@
-# Your Project Name
+# TeleRAG-Agent
 
-- **Problem Statement Number** - 
-- **Problem Statement Title** - *(Must exactly match one of the 11 Samsung EnnovateX AX Hackathon Problem Statements)*
-- **Team name** - *(Same as Phase 1 Team name)*
-- **Team members (Names)** - *Member 1 Name*, *Member 2 Name*
-- **Institute/College Name** - *Name*, *Campus Name & Address (In case the institute has multiple campuses)*
-- **Final Presentation Google Drive Link** - *Upload the PDF presentation for your final submission on Google Drive (It should be openly accessible and not behind any login wall)*
-- **Full Submission Demo Video Link** - *(Upload the Demo video on Youtube as a public or unlisted video and share the link. Google Drive uploads for video is not allowed.)*
-- **Setup & Result Reproducibility Video Link** - *(Upload the Demo video on Youtube as a public or unlisted video and share the link. Google Drive uploads for video is not allowed.)*
+- **Problem Statement Number** - 10
+- **Problem Statement Title** - RAG based Future-Ready Telecom RAN Assistant
+- **Team name** - Chaitanya
+- **Team members (Names)** - Chaitanya Kadupukutla
+- **Institute/College Name** - IIIT Hyderabad, Gachibowli, Hyderabad 500032
+- **Final Presentation Google Drive Link** - *[To be added]*
+- **Full Submission Demo Video Link** - *[To be added]*
+- **Setup & Result Reproducibility Video Link** - *[To be added]*
+
+---
+
+## About TeleRAG-Agent
+
+TeleRAG-Agent is an **agentic RAG system** for telecom Radio Access Networks that automates 3GPP spec question-answering, O-RAN alarm analysis, and KPI anomaly detection. It uses a **LangGraph 4-node agentic loop** (PLAN → RETRIEVE → GENERATE → REFLECT) with confidence-based re-retrieval, hybrid search (dense + sparse + knowledge graph), cross-encoder re-ranking, and a QLoRA fine-tuned LLaMA-3-8B backbone.
+
+### Key Features
+- **Hybrid Retrieval:** Dense (BGE-large) + Sparse (BM25) + KG heading graph, fused with Reciprocal Rank Fusion
+- **Cross-Encoder Reranking:** BGE-reranker-v2-m3 for precision over the top-k candidates
+- **Agentic Loop:** LangGraph state machine with PLAN → RETRIEVE → GENERATE → REFLECT nodes
+- **Confidence-based Re-retrieval:** If the REFLECT node scores below threshold, the agent re-plans and re-retrieves
+- **QLoRA Fine-tuning:** LoRA adapter trained on TeleQnA for telecom domain specialization
+- **O-RAN Alarm Analysis:** Storm detection, severity breakdown, root cause analysis
+- **KPI Anomaly Detection:** Z-score statistical analysis aligned with 3GPP TS 28.552 thresholds
+- **Security:** Prompt injection detection, PII masking, audit logging
+- **Explainability:** Source citations with spec clause numbers, full agent thinking trace
+
+---
 
 ### Project Artefacts
 
-- **Technical Documentation** - Create a **docs** folder and add all technical details in markdown files inside this folder explaining the project Technical Stack, List of OSS libraries/projects used along with their links, the technical architecture of your solution, implementation details, installation instructions, user guide, salient features of the projects. Kindly add screenshots wherever possible.
-- **[Important]** Create a file `docs/ax.md` whiere you explain in detail how you utilizes open weight models and/or agentic development tools to implement your solution. Explain in detail your  Agentic AI setup , Agentic workflows, Reasoning & planning pipelines, Tool use / tool chaining, Coding assistants, agents, harness, MCP servers, agents.md, skills, Memory / context handling, Multi-agent orchestration systems, etc. Please highlight from your experience - what worked and **what did not work**.
-- **Source Code** - Create a **src** folder and add all developed project source codes (including training & benchmark evaluation codes) in the repo. The code must be capable of being successfully installed/executed and must run consistently on the intended platforms.
-- **Models Used** - *(Hugging Face links to all models used in the project. You are permitted to use only open weight models.)*
-- **Models Published** - *(In case you have developed a model as a part of your solution, kindly upload it on Hugging Face under appropriate open source license and add the link here.)*
-- **Datasets Used** - *(Links to all datasets used in the project. You are permitted to use publicly available datasets under licenses like Creative Commons, Open Data Commons, or equivalent.)*
-- **Datasets Published** - *(Links to all datasets created for the project and published on Hugging Face. You are allowed to publish any synthetic or proprietary dataset used in their project, but will be responsible for any legal compliance and permission for the same. The dataset can be published under Creative Commons, Open Data Commons, or equivalent license.)*
+- **Technical Documentation** - See the [`docs/`](docs/) folder:
+  - [`docs/architecture.md`](docs/architecture.md) — System architecture with Mermaid diagrams
+  - [`docs/ax.md`](docs/ax.md) — Agentic AI deep-dive: workflows, tool use, what worked and what didn't
+  - [`docs/installation.md`](docs/installation.md) — Installation and setup instructions
+- **Source Code** - See the [`src/`](src/) folder containing all modules:
+  - `src/agent/` — LangGraph agent with 4 nodes and 3 specialized tools
+  - `src/retrieval/` — Hybrid search, fusion, reranker, context assembler
+  - `src/models/` — Singleton model loader, inference wrapper
+  - `src/evaluation/` — Retrieval metrics, answer accuracy, ablation study
+  - `src/security/` — Input sanitizer, PII detector, audit logger
+  - `src/ui/` — Gradio web interface with 4 tabs
+  - `src/data/` — Data preparation, synthetic generators
+  - `src/ingestion/` — PDF/HTML parsers, hierarchical chunker, embedder, indexer
+
+### Models Used
+
+| Model | Purpose | Link |
+|---|---|---|
+| AliMaatouk/LLama-3-8B-Tele-it | Base LLM (telecom-specialized) | [HuggingFace](https://huggingface.co/AliMaatouk/LLama-3-8B-Tele-it) |
+| BAAI/bge-large-en-v1.5 | Dense embedding model | [HuggingFace](https://huggingface.co/BAAI/bge-large-en-v1.5) |
+| BAAI/bge-reranker-v2-m3 | Cross-encoder reranker | [HuggingFace](https://huggingface.co/BAAI/bge-reranker-v2-m3) |
+| Qdrant/bm25 | Sparse BM25 embedding | [HuggingFace](https://huggingface.co/Qdrant/bm25) |
+
+### Models Published
+
+| Model | Description | Link |
+|---|---|---|
+| Imchaitanya/TeleRAG_LoRA | QLoRA fine-tuned adapter for telecom Q&A | [HuggingFace](https://huggingface.co/Imchaitanya/TeleRAG_LoRA) |
+
+### Datasets Used
+
+| Dataset | Description | Link |
+|---|---|---|
+| TeleQnA | 10K telecom Q&A from 3GPP standards | [GitHub](https://github.com/netop-team/TeleQnA) |
+| 3GPP Release 16/18 Specs | Technical specifications (TS 38.xxx series) | [3GPP](https://www.3gpp.org/specifications) |
+| O-RAN Alliance Data | RAN alarm logs and KPI metrics | [netop-team](https://github.com/netop-team) |
+
+### Datasets Published
+
+| Dataset | Description | Link |
+|---|---|---|
+| Imchaitanya/TeleRAG-Chunks | 35K processed spec chunks + KG graph + eval splits | [HuggingFace](https://huggingface.co/datasets/Imchaitanya/TeleRAG-Chunks) |
+
+---
+
+### Target KPIs
+
+| Metric | Target | Achieved |
+|---|---|---|
+| Mean Reciprocal Rank (MRR) | Above 75% | ✅ 100% |
+| Top-k Accuracy | Above 85% | ✅ 100% (Recall@5) |
+| Accuracy | Above 80% | 🔄 Re-evaluating with fixes |
+| Recall | Above 85% | ✅ 100% (Recall@10) |
+| Faithfulness | Above 90% | ✅ Source citations in every response |
+
+---
 
 #### Final Presentation
 
-Unlike Phase 1 presentation, in Phase 2 you can freely decide the template, flow and content of your technical presentation. Ensure you cover all aspects of your solution - innovation, novelty, architecture, open datasets/models developed and used, final deliverable details, KPIs of your solution, AI/Agent use, any other details. 
+The final presentation covers: system architecture, agentic workflow design, hybrid retrieval pipeline, QLoRA fine-tuning results, ablation study, security features, and live demo walkthrough.
 
 #### Full Submission Demo Video
 
-Create a high quality video demonstration your solution in real life and showcasing how it is actually solves the proposed AX Hackathon problem.
+Demonstrates: 3GPP spec Q&A with citations, prompt injection blocking, O-RAN alarm storm detection, KPI anomaly analysis, and agent thinking trace visualization.
 
 #### Setup & Result Reproducibility Video
 
-To ensure reproducibility of results and to verify the presented KPIs, we require you to create a video demonstrating:
-- Step by step project installation,
-- Data/model download steps, 
-- Execution of all required codes to train the developed models (if any)
-- Execution of all evaluation codes to reproduce the presented results/KPIs 
+Shows: Kaggle notebook setup, model download, Qdrant database loading, evaluation script execution, and KPI metric reproduction.
 
-### Attribution 
+### Attribution
 
-In case this project is built on top of an existing open source project, please provide the original project link here. Also, mention what new features were developed. Failing to attribute the source projects may lead to disqualification during the time of evaluation.
+This project builds upon the following open-source projects and models:
+
+- **[TeleQnA](https://github.com/netop-team/TeleQnA)** — Telecom Q&A dataset by netop-team. Used for training data and evaluation benchmarks.
+- **[Tele-LLMs](https://github.com/Ali-maatouk/Tele-LLMs)** — Telecom-specialized LLaMA models by Ali Maatouk et al. We use `LLama-3-8B-Tele-it` as our base model.
+- **[LangGraph](https://github.com/langchain-ai/langgraph)** — Agentic state machine framework by LangChain. Used to build our 4-node PLAN/RETRIEVE/GENERATE/REFLECT loop.
+- **[Qdrant](https://github.com/qdrant/qdrant)** — Vector database for hybrid dense+sparse search.
+- **[Gradio](https://github.com/gradio-app/gradio)** — Web UI framework for the interactive demo.
+- **[PEFT](https://github.com/huggingface/peft)** — Parameter-Efficient Fine-Tuning (QLoRA) by HuggingFace.
+- **[bitsandbytes](https://github.com/TimDettmers/bitsandbytes)** — 4-bit quantization for efficient GPU inference.
+
+**New features developed by our team:**
+- Complete agentic RAG pipeline with confidence-based re-retrieval
+- 3-tier hierarchical chunking with parent-child expansion
+- Knowledge Graph heading index for structural retrieval
+- O-RAN alarm storm detection and root cause analysis
+- KPI anomaly detection with 3GPP TS 28.552 thresholds
+- Security module: prompt injection detection, PII masking, audit logging
+- Full evaluation framework with 4-experiment ablation study

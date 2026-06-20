@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 class TelecomHTMLParser:
     def __init__(self):
         # Regex to detect 3GPP section headers in text if tags aren't sufficient
-        self.section_regex = re.compile(r"^(\d+\.)+\s+(.+)$")
+        self.section_regex = re.compile(r"^(\d+(?:\.\d+)*)\s+(.+)$")
 
     def parse(self, html_path: str | Path) -> List[Dict[str, Any]]:
         """Parses a 3GPP HTML specification into structured sections."""

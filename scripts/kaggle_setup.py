@@ -342,6 +342,19 @@ if not teleqna_test.exists():
 else:
     print("  ✅ TeleQnA processed splits already exist.")
 
+# ── Copy section_graph.pkl if uploaded by user ──
+kg_dest = REPO_DIR / "data" / "processed" / "section_graph.pkl"
+if not kg_dest.exists():
+    import glob as _glob2
+    kg_files = _glob2.glob("/kaggle/input/**/section_graph.pkl", recursive=True)
+    if kg_files:
+        kg_dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(kg_files[0], str(kg_dest))
+        print("  ✅ Copied section_graph.pkl (KG heading index).")
+    else:
+        print("  ⚠  section_graph.pkl not in /kaggle/input — KG search disabled.")
+else:
+    print("  ✅ section_graph.pkl already exists.")
 
 if args.no_launch:
     print("\n--no-launch: setup complete, UI not started.")

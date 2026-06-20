@@ -5,7 +5,7 @@ import re
 
 class HierarchicalChunker:
     def __init__(self, leaf_min=200, leaf_max=500, section_min=500, section_max=1500):
-        self.leaf_min = leaf_min
+        self.leaf_min = min(leaf_min, leaf_max)
         self.leaf_max = leaf_max
         self.section_min = section_min
         self.section_max = section_max
@@ -113,7 +113,7 @@ class HierarchicalChunker:
                     if c["chunk_tier"] == "leaf" and c.get("parent_id") == chunk.get("parent_id"):
                         prev = c
                         break
-                if prev:
+                if prev and prev["token_count"] + chunk["token_count"] <= self.leaf_max:
                     prev["content"] += " " + chunk["content"]
                     prev["token_count"] = self._approx_tokens(prev["content"])
                     # Remove this chunk's id from parent's child_ids

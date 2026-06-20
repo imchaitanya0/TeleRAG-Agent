@@ -154,7 +154,7 @@ def run_ablation(
                 subset,
                 use_rag=True,
                 lora_repo=exp["lora_repo"],
-                max_new_tokens=50,
+                max_new_tokens=100,
                 verbose=verbose,
             )
 

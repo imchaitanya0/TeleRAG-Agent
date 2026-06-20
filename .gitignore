@@ -19,3 +19,4 @@ docs/screenshots/
 *.pt
 .ipynb_checkpoints/
 .DS_Store
+qdrant_storage.zip
