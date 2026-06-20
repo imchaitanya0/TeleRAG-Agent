@@ -5,7 +5,11 @@ Generates realistic alarm events with temporal correlations (alarm storms).
 import json
 import random
 from datetime import datetime, timedelta
+import sys
 from pathlib import Path
+
+# Ensure repo root is on path
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 
 from src.config import DATA_SYNTHETIC_DIR
 
