@@ -342,19 +342,39 @@ if not teleqna_test.exists():
 else:
     print("  ✅ TeleQnA processed splits already exist.")
 
-# ── Copy section_graph.pkl if uploaded by user ──
-kg_dest = REPO_DIR / "data" / "processed" / "section_graph.pkl"
+# ── Download chunks.jsonl & section_graph.pkl from HuggingFace ──
+import os
+from huggingface_hub import hf_hub_download
+
+dest_dir = REPO_DIR / "data" / "processed"
+dest_dir.mkdir(parents=True, exist_ok=True)
+
+kg_dest = dest_dir / "section_graph.pkl"
+chunks_dest = dest_dir / "chunks.jsonl"
+
+hf_repo = "Imchaitanya/TeleRAG-Chunks"
+
 if not kg_dest.exists():
-    import glob as _glob2
-    kg_files = _glob2.glob("/kaggle/input/**/section_graph.pkl", recursive=True)
-    if kg_files:
-        kg_dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy(kg_files[0], str(kg_dest))
-        print("  ✅ Copied section_graph.pkl (KG heading index).")
-    else:
-        print("  ⚠  section_graph.pkl not in /kaggle/input — KG search disabled.")
+    try:
+        print(f"  Downloading section_graph.pkl from {hf_repo}...")
+        path = hf_hub_download(repo_id=hf_repo, repo_type="dataset", filename="section_graph.pkl")
+        shutil.copy(path, str(kg_dest))
+        print("  ✅ Downloaded section_graph.pkl")
+    except Exception as e:
+        print(f"  ⚠ Failed to download section_graph.pkl: {e}")
 else:
     print("  ✅ section_graph.pkl already exists.")
+
+if not chunks_dest.exists():
+    try:
+        print(f"  Downloading chunks.jsonl from {hf_repo} (this may take a minute for 1.75GB)...")
+        path = hf_hub_download(repo_id=hf_repo, repo_type="dataset", filename="chunks.jsonl")
+        shutil.copy(path, str(chunks_dest))
+        print("  ✅ Downloaded chunks.jsonl")
+    except Exception as e:
+        print(f"  ⚠ Failed to download chunks.jsonl: {e}")
+else:
+    print("  ✅ chunks.jsonl already exists.")
 
 if args.no_launch:
     print("\n--no-launch: setup complete, UI not started.")
