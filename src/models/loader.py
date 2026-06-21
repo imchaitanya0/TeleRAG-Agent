@@ -139,10 +139,19 @@ def get_model(
 def reset_model():
     """Force-unload the cached model (useful for adapter switching or tests)."""
     global _model, _tokenizer
+    if _model is not None:
+        del _model
+    if _tokenizer is not None:
+        del _tokenizer
     _model = None
     _tokenizer = None
+    
+    import gc
+    gc.collect()
+    
     if HAS_CUDA:
         torch.cuda.empty_cache()
+        torch.cuda.ipc_collect()
     print("[Loader] Model cache cleared.")
 
 

@@ -105,6 +105,9 @@ def run_ablation(
     subset = questions[:n]
     results = []
 
+    # Track what model is currently loaded so we only reset when necessary
+    current_lora = "UNLOADED"
+
     import src.retrieval.fusion as fusion_mod
 
     for exp in EXPERIMENTS:
@@ -118,14 +121,15 @@ def run_ablation(
         orig_retriever = None
 
         try:
-            # Reset the model singleton before each experiment so LoRA is
-            # correctly applied (or not) per-experiment. Yes, this costs ~90s
-            # per reload, but it's the ONLY way to correctly test LoRA impact.
-            from src.models.loader import reset_model
-            if verbose:
-                lora_label = exp["lora_repo"] or "none (base model)"
-                print(f"  Loading model with lora={lora_label} ...")
-            reset_model()
+            # Only reset the model singleton if the required LoRA changes.
+            # This saves ~90s per run and prevents CUDA OOMs from repeated loading.
+            if exp["lora_repo"] != current_lora:
+                from src.models.loader import reset_model
+                if verbose:
+                    lora_label = exp["lora_repo"] or "none (base model)"
+                    print(f"  Loading model with lora={lora_label} ...")
+                reset_model()
+                current_lora = exp["lora_repo"]
 
             # Patch retriever for sparse-only experiment
             if exp["sparse_only"]:
