@@ -105,22 +105,6 @@ def run_ablation(
     subset = questions[:n]
     results = []
 
-    # ── Pre-load the LLM ONCE ──────────────────────────────────────────
-    # The 8B model takes ~90s to load. Loading it once and reusing
-    # across all 4 experiments saves ~270 seconds total.
-    # We pre-warm with the LoRA adapter; the "No Fine-tuning" experiment
-    # passes lora_repo=None so the inference wrapper skips the adapter.
-    if verbose:
-        print("\n  Pre-loading LLM (done once for all experiments)...")
-    try:
-        from src.models.loader import get_model_and_tokenizer
-        _model, _tokenizer = get_model_and_tokenizer(lora_repo=None)  # base model
-        if verbose:
-            print("  ✅ LLM pre-loaded (base model, no LoRA)")
-    except Exception as e:
-        if verbose:
-            print(f"  ⚠ Could not pre-load LLM: {e}")
-
     import src.retrieval.fusion as fusion_mod
 
     for exp in EXPERIMENTS:
@@ -134,6 +118,15 @@ def run_ablation(
         orig_retriever = None
 
         try:
+            # Reset the model singleton before each experiment so LoRA is
+            # correctly applied (or not) per-experiment. Yes, this costs ~90s
+            # per reload, but it's the ONLY way to correctly test LoRA impact.
+            from src.models.loader import reset_model
+            if verbose:
+                lora_label = exp["lora_repo"] or "none (base model)"
+                print(f"  Loading model with lora={lora_label} ...")
+            reset_model()
+
             # Patch retriever for sparse-only experiment
             if exp["sparse_only"]:
                 orig_retriever, fusion_mod = _patch_retriever_sparse_only()
@@ -149,13 +142,15 @@ def run_ablation(
                 verbose=False,
             )
 
-            # Answer accuracy metrics (uses pre-loaded LLM)
+            # Answer accuracy metrics
+            # use_rag=True: use retrieval context (with threshold to skip irrelevant results)
             ans_metrics = evaluate_answers(
                 subset,
                 use_rag=True,
                 lora_repo=exp["lora_repo"],
-                max_new_tokens=100,
+                max_new_tokens=30,
                 verbose=verbose,
+                reranker_threshold=0.15,
             )
 
             elapsed = time.time() - t0

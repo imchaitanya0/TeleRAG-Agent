@@ -120,11 +120,13 @@ def load_golden_questions(n: int) -> list[dict]:
                 q_match = re.match(r"Question:\s*(.+?)(?:\n\n|\nOptions:)", input_text, re.DOTALL)
                 q_text = q_match.group(1).strip() if q_match else input_text.split("\n")[0]
 
-                # Extract individual options
+                # Extract individual options — simple line-by-line (captures ALL options including E)
                 options = []
-                opt_matches = re.findall(r"([A-E])\)\s*(.+?)(?=\n[A-E]\)|$)", input_text, re.DOTALL)
-                for _, opt_text in opt_matches:
-                    options.append(opt_text.strip())
+                for opt_line in input_text.split("\n"):
+                    opt_m = re.match(r"^([A-E])\)\s*(.+)$", opt_line.strip())
+                    if opt_m:
+                        options.append(opt_m.group(2).strip())
+
 
                 if not input_text:
                     continue

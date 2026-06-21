@@ -75,7 +75,7 @@ def generate(
     max_new_tokens: int = 200,
     temperature: float = 0.0,
     do_sample: bool = False,
-    repetition_penalty: float = 1.1,
+    repetition_penalty: float = 1.0,  # 1.0 = disabled; avoids penalising repeated option text
     lora_repo: Optional[str] = None,
 ) -> str:
     """
