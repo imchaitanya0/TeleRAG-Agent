@@ -27,9 +27,12 @@ parser = argparse.ArgumentParser(description="TeleRAG-Agent Kaggle Setup")
 parser.add_argument(
     "--qdrant-path", type=str,
     default="/kaggle/input/telerag-qdrant-db/qdrant_storage",
+    help="Path to the Qdrant database in Kaggle inputs"
 )
 parser.add_argument("--share", action="store_true")
 parser.add_argument("--no-launch", action="store_true")
+parser.add_argument("--force-qdrant", action="store_true",
+                    help="Force delete and re-copy the Qdrant database (fixes locked/corrupted DBs)")
 args = parser.parse_args()
 
 REPO_DIR = Path(__file__).resolve().parent.parent
@@ -217,7 +220,15 @@ QDRANT_DEST.parent.mkdir(parents=True, exist_ok=True)
 qdrant_src = Path(args.qdrant_path)
 
 if QDRANT_DEST.exists() and any(QDRANT_DEST.iterdir()):
-    print(f"  ✅ Already at {QDRANT_DEST}")
+    if args.force_qdrant:
+        print(f"  🗑️ --force-qdrant flag passed. Deleting corrupted {QDRANT_DEST} ...")
+        shutil.rmtree(QDRANT_DEST)
+        print(f"  Copying {qdrant_src} → {QDRANT_DEST} ...")
+        shutil.copytree(str(qdrant_src), str(QDRANT_DEST))
+        size = subprocess.check_output(f"du -sh {QDRANT_DEST}", shell=True, text=True).strip()
+        print(f"  ✅ Ready. {size}")
+    else:
+        print(f"  ✅ Already at {QDRANT_DEST}")
 elif qdrant_src.exists():
     print(f"  Copying {qdrant_src} → {QDRANT_DEST} ...")
     shutil.copytree(str(qdrant_src), str(QDRANT_DEST))
