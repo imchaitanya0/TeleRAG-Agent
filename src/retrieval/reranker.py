@@ -6,10 +6,15 @@ sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 
 from sentence_transformers import CrossEncoder
 
+_cross_encoder_model = None
+
 class Reranker:
     def __init__(self, model_name: str = "BAAI/bge-reranker-v2-m3"):
-        print(f"Loading CrossEncoder re-ranker: {model_name}")
-        self.model = CrossEncoder(model_name)
+        global _cross_encoder_model
+        if _cross_encoder_model is None:
+            print(f"Loading CrossEncoder re-ranker: {model_name}")
+            _cross_encoder_model = CrossEncoder(model_name)
+        self.model = _cross_encoder_model
 
     def rerank(self, query: str, candidates: List[Dict], top_k: int = 5, threshold: float = 0.0) -> List[Dict]:
         """

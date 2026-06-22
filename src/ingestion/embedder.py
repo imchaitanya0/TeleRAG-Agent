@@ -6,14 +6,24 @@ from sentence_transformers import SentenceTransformer
 from fastembed import SparseTextEmbedding
 from src.config import EMBED_MODEL_ID
 
+_dense_model = None
+_sparse_model = None
+
 class TelecomEmbedder:
     def __init__(self, batch_size: int = 32):
         self.batch_size = batch_size
-        print(f"Loading dense embedding model: {EMBED_MODEL_ID}")
-        self.dense_model = SentenceTransformer(EMBED_MODEL_ID)
         
-        print("Loading sparse embedding model: Qdrant/bm25")
-        self.sparse_model = SparseTextEmbedding("Qdrant/bm25")
+        global _dense_model, _sparse_model
+        
+        if _dense_model is None:
+            print(f"Loading dense embedding model: {EMBED_MODEL_ID}")
+            _dense_model = SentenceTransformer(EMBED_MODEL_ID)
+        self.dense_model = _dense_model
+        
+        if _sparse_model is None:
+            print("Loading sparse embedding model: Qdrant/bm25")
+            _sparse_model = SparseTextEmbedding("Qdrant/bm25")
+        self.sparse_model = _sparse_model
         
         # Instruction prefix required by BGE models for retrieval queries
         # Note: We do NOT use this prefix for indexing documents, only for queries
