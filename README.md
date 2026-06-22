@@ -116,6 +116,12 @@ Shows complete reproduction from scratch: `git pull` on Kaggle, automatic datase
 
 ### Kaggle Notebook Setup (2 cells)
 
+**Prerequisite for Judges:** 
+Before running the cells, you must attach the pre-built Qdrant Vector Database to your Kaggle notebook.
+1. Click **"Add Data"** on the right-side panel in Kaggle.
+2. Search for `telerag-qdrant-db` (by `imchaitanya0`) and click the **+** to add it. 
+*(Note: If you don't add this, the setup script will complain that the database is missing!)*
+
 **Cell 1 — Setup & install:**
 ```python
 # Clone / pull latest code
