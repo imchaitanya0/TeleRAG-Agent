@@ -5,7 +5,7 @@
 - **Team name** - under_served
 - **Team members (Names)** - Chaitanya Kadupukutla
 - **Institute/College Name** - IIIT Hyderabad, Gachibowli, Hyderabad 500032
-- **Final Presentation Google Drive Link** - *[To be added after recording]*
+- **Final Presentation Google Drive Link** - [View Slides on Google Drive](https://drive.google.com/file/d/1an-4PCD1v7APMECxfrcF7xQAnDieTEfR/view?usp=sharing)
 - **Full Submission Demo Video Link** - [Watch on Loom](https://www.loom.com/share/b73358a379d14198a83569586deff4ec)
 - **Setup & Result Reproducibility Video Link** - [Watch on Loom](https://www.loom.com/share/c7f40d6e84734f3496fe0a7decc4044d)
 
