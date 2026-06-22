@@ -122,33 +122,26 @@ Before running the cells, you must attach the pre-built Qdrant Vector Database t
 2. Search for `telerag-qdrant-db` (by `imchaitanya0`) and click the **+** to add it. 
 *(Note: If you don't add this, the setup script will complain that the database is missing!)*
 
-**Cell 1 — Setup & install:**
-```python
-# Clone / pull latest code
-import subprocess
-if not __import__('os').path.exists('/kaggle/working/TeleRAG-Agent'):
-    subprocess.run(['git', 'clone', 'https://github.com/imchaitanya0/TeleRAG-Agent.git',
-                    '/kaggle/working/TeleRAG-Agent'], check=True)
-else:
-    subprocess.run(['git', '-C', '/kaggle/working/TeleRAG-Agent', 'pull', 'origin', 'main'], check=True)
+**Cell 1 — Clone, setup & install:**
+```bash
+# Clone the repo (or pull latest if already cloned)
+!git clone https://github.com/imchaitanya0/TeleRAG-Agent.git /kaggle/working/TeleRAG-Agent || \
+    (cd /kaggle/working/TeleRAG-Agent && git pull origin main)
 
-# Run setup: installs deps, downloads models & data from HuggingFace
-import sys
-sys.path.insert(0, '/kaggle/working/TeleRAG-Agent')
-%run /kaggle/working/TeleRAG-Agent/scripts/kaggle_setup.py \
+# Run setup: installs deps, copies Qdrant DB, downloads models from HuggingFace
+# NOTE: Update the --qdrant-path below to match where Kaggle mounted the dataset.
+# After adding the dataset, check /kaggle/input/ to find the exact path.
+!python /kaggle/working/TeleRAG-Agent/scripts/kaggle_setup.py \
     --qdrant-path /kaggle/input/telerag-qdrant-db/qdrant_storage \
     --no-launch
 ```
 
 **Cell 2 — Run full ablation evaluation:**
-```python
-import subprocess
-result = subprocess.run(
-    ['python', '/kaggle/working/TeleRAG-Agent/scripts/run_eval.py',
-     '--mode', 'ablation', '--n', '50', '--dataset', 'standards', '--verbose'],
-    env={**__import__('os').environ, 'QDRANT_URL': ''},
-    capture_output=False
-)
+```bash
+# Pull any latest updates, then run the 4-experiment ablation
+!cd /kaggle/working/TeleRAG-Agent && git pull origin main
+!QDRANT_URL="" python /kaggle/working/TeleRAG-Agent/scripts/run_eval.py \
+    --mode ablation --n 50 --dataset standards --verbose
 ```
 
 **Expected output:**
@@ -158,6 +151,9 @@ No Re-ranker:   90%  MRR@10=1.0000  Recall@5=100%  ~9.5s/query
 Sparse Only:    90%  MRR@10=1.0000  Recall@5=100%  ~9.0s/query
 No Fine-tuning: 14%  MRR@10=1.0000  Recall@5=100%  ~8.5s/query
 ```
+
+> **Note on Qdrant path:** After attaching `telerag-qdrant-db` as a Kaggle input dataset, run `!ls /kaggle/input/` to find the exact mount path and update `--qdrant-path` accordingly.
+
 
 ### Attribution
 
