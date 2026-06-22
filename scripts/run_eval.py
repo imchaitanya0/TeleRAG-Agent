@@ -43,6 +43,7 @@ parser.add_argument(
     required=True, help="Which evaluation to run"
 )
 parser.add_argument("--n", type=int, default=50, help="Number of questions (default 50)")
+parser.add_argument("--dataset", type=str, default="test", choices=["test", "val", "standards"], help="Dataset split to evaluate on")
 parser.add_argument("--lora", action="store_true", help="Load LoRA adapter for generation")
 parser.add_argument("--verbose", action="store_true", help="Print per-question results")
 parser.add_argument(
@@ -58,9 +59,9 @@ def banner(msg):
     print(f"\n{'═'*60}\n  {msg}\n{'═'*60}", flush=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Load golden questions from TeleQnA test set
+# Load golden questions from TeleQnA dataset
 # ─────────────────────────────────────────────────────────────────────────────
-def load_golden_questions(n: int) -> list[dict]:
+def load_golden_questions(n: int, dataset_name: str = "test") -> list[dict]:
     """
     Load up to n questions for evaluation.
 
@@ -79,16 +80,15 @@ def load_golden_questions(n: int) -> list[dict]:
     questions = []
 
     # ── 1: Search for processed JSONL splits ──────────────────────
+    filename = f"teleqna_{dataset_name}.jsonl"
     search_paths = [
-        DATA_PROCESSED_DIR / "teleqna_test.jsonl",
-        DATA_PROCESSED_DIR / "teleqna_val.jsonl",
+        DATA_PROCESSED_DIR / filename,
     ]
 
     # Also search Kaggle inputs for pre-processed jsonl datasets
     kaggle_input = Path("/kaggle/input")
     if kaggle_input.exists():
-        search_paths.extend(list(kaggle_input.rglob("teleqna_test.jsonl")))
-        search_paths.extend(list(kaggle_input.rglob("teleqna_val.jsonl")))
+        search_paths.extend(list(kaggle_input.rglob(filename)))
 
     for path in search_paths:
         if not path.exists():
@@ -239,7 +239,7 @@ def _synthetic_questions() -> list[dict]:
 # ─────────────────────────────────────────────────────────────────────────────
 banner(f"TeleRAG-Agent Evaluation — mode={args.mode}, n={args.n}")
 
-questions = load_golden_questions(args.n)
+questions = load_golden_questions(args.n, args.dataset)
 print(f"  Using {len(questions)} questions\n")
 
 timestamp = time.strftime("%Y%m%d_%H%M%S")
