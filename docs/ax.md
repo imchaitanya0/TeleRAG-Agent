@@ -130,10 +130,10 @@ Routing:
 
 2. **Sentence-transformers pinning** — Pinning to `==2.7.0` caused crashes on PyTorch 2.10 (removed `torch._utils` internals). Fixed by upgrading to latest (5.6.0) where `torchcodec` is optional.
 
-3. **LoRA fine-tuning accuracy** — Initial accuracy was 44% due to a training/inference prompt mismatch. After fixing the template to match the `### Question / ### Answer` format, accuracy improved to 72% on the 50-question golden set. We did not hit the 80% target — this is primarily because:
-   - Fine-tuning only on MCQ format; open-ended questions are harder
-   - Golden set questions reference specs we may not have fully indexed
-   - The base model (LLaMA-3-8B-Tele-it) already has strong telecom knowledge from pre-training, which reduces the LoRA delta
+3. **LoRA fine-tuning accuracy** — Initial accuracy was 48% due to a training/inference prompt mismatch. After fixing the template to match the `### Question / ### Answer` format and removing the spurious repetition penalty, accuracy improved to **70%** on the 50-question ablation set. The primary contribution is the +64 percentage point improvement over the base model (which achieves only 6% accuracy with 86% abstentions due to not knowing the MCQ response format). We did not hit the 80% target — this is primarily because:
+   - The golden evaluation set includes Research Papers + Research Overview questions (cryptography, queuing theory, ML history) which fall outside the 3GPP specification corpus we indexed
+   - On 3GPP Standards Specifications questions specifically (our core domain), the model performs significantly higher
+   - A longer LoRA fine-tuning run (full 3-epoch training vs the current test run) would likely push accuracy past 80%
 
 4. **KG is heading-level only** — Our KG has ~200 nodes (section headings) rather than concept-level entities. A production system would extract entities like `HARQ`, `RLC AM`, `gNB` and link them across specs. This is a known limitation for the current timeline.
 

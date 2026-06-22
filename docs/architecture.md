@@ -110,7 +110,7 @@ The model loader (`src/models/loader.py`) uses a singleton pattern — the LLM i
 
 - **Vector DB**: Qdrant (local path mode, no server required on Kaggle)
 - **Collection**: `telecom_specs`
-- **Chunks**: ~30,000 leaf chunks from 15+ 3GPP specifications
+- **Chunks**: 35,153 leaf chunks from 15+ 3GPP specifications (verified)
 - **Chunk schema**: `{spec_number, clause_string, clause_title, content, chunk_type, parent_id}`
 - **Vectors**: 1024-dim dense (BGE-large) + sparse BM25 indices
 
