@@ -1,16 +1,5 @@
 # TeleRAG-Agent
 
-- **Problem Statement Number** - 10
-- **Problem Statement Title** - RAG based Future-Ready Telecom RAN Assistant
-- **Team name** - under_served
-- **Team members (Names)** - Chaitanya Kadupukutla
-- **Institute/College Name** - IIIT Hyderabad, Gachibowli, Hyderabad 500032
-- **Final Presentation Google Drive Link** - [View Slides on Google Drive](https://drive.google.com/file/d/1an-4PCD1v7APMECxfrcF7xQAnDieTEfR/view?usp=sharing)
-- **Full Submission Demo Video Link** - [Watch on Loom](https://www.loom.com/share/b73358a379d14198a83569586deff4ec)
-- **Setup & Result Reproducibility Video Link** - [Watch on Loom](https://www.loom.com/share/c7f40d6e84734f3496fe0a7decc4044d)
-
----
-
 ## About TeleRAG-Agent
 
 TeleRAG-Agent is an **agentic RAG system** for telecom Radio Access Networks that automates 3GPP spec question-answering, O-RAN alarm analysis, and KPI anomaly detection. It uses a **LangGraph 4-node agentic loop** (PLAN → RETRIEVE → GENERATE → REFLECT) with confidence-based re-retrieval, hybrid search (dense + sparse + knowledge graph), cross-encoder re-ranking, and a QLoRA fine-tuned LLaMA-3-8B backbone.
@@ -97,20 +86,6 @@ TeleRAG-Agent is an **agentic RAG system** for telecom Radio Access Networks tha
 | **No Fine-tuning**  | **14%**  | 1.0000 | 100%     | 8.5s     | 84% abstentions — base model refuses MCQ format |
 
 > **Key insight:** LoRA fine-tuning is the critical component. Without it, the base model abstains on 84% of questions. The +76 percentage point improvement is the core contribution of this work.
-
----
-
-#### Final Presentation
-
-The final presentation covers: system architecture, agentic workflow design, hybrid retrieval pipeline, QLoRA fine-tuning results, ablation study with the key LoRA vs no-LoRA comparison, security features, and live demo walkthrough.
-
-#### Full Submission Demo Video
-
-Demonstrates: 3GPP spec Q&A with citations, prompt injection blocking, O-RAN alarm storm detection, KPI anomaly analysis, and agent thinking trace visualization.
-
-#### Setup & Result Reproducibility Video
-
-Shows complete reproduction from scratch: `git pull` on Kaggle, automatic dataset download from HuggingFace via `kaggle_setup.py`, Qdrant database loading, full ablation evaluation script execution, and KPI metric reproduction.
 
 ---
 
